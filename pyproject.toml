@@ -1,0 +1,35 @@
+[project]
+name = "shared-knowledge-mcp"
+version = "0.1.0"
+description = "Shared, evidence-backed AI knowledge graph exposed through MCP"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=1,<2",
+    "neo4j",
+    "openai",
+    "pydantic>=2",
+    "pydantic-settings",
+    "starlette",
+    "uvicorn[standard]",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx",
+    "pytest",
+    "pytest-asyncio",
+]
+
+[project.scripts]
+knowledge-mcp = "app.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
