@@ -546,9 +546,19 @@ class GraphRepository:
             MATCH (claim:Claim {knowledge_id: $knowledge_id})-[:SUBJECT]->(subject)
             OPTIONAL MATCH (claim)-[:OBJECT]->(object)
             WHERE subject.id IN $entity_ids OR object.id IN $entity_ids
-            OPTIONAL MATCH (claim)-[:SUPPORTED_BY]->(evidence:Evidence)
+            WITH claim, subject, object
             OPTIONAL MATCH (subject_alias:Alias)-[:ALIAS_OF]->(subject)
+            WITH claim, subject, object,
+                 collect(DISTINCT subject_alias.display) AS subject_aliases
             OPTIONAL MATCH (object_alias:Alias)-[:ALIAS_OF]->(object)
+            WITH claim, subject, object, subject_aliases,
+                 collect(DISTINCT object_alias.display) AS object_aliases
+            OPTIONAL MATCH (claim)-[:SUPPORTED_BY]->(evidence:Evidence)
+            WITH claim, subject, object, subject_aliases, object_aliases,
+                 collect(DISTINCT evidence {
+                     .id, .source, .text,
+                     ingested_at: toString(evidence.ingested_at)
+                 }) AS evidence_items
             RETURN claim {
                        .id, .predicate, .object_literal, .polarity, .status,
                        .confidence, .valid_from, .valid_to
@@ -558,19 +568,16 @@ class GraphRepository:
                        name: subject.canonical_name,
                        .kind,
                        .summary,
-                       aliases: collect(DISTINCT subject_alias.display)
+                       aliases: subject_aliases
                    } AS subject,
                    CASE WHEN object IS NULL THEN NULL ELSE object {
                        .id,
                        name: object.canonical_name,
                        .kind,
                        .summary,
-                       aliases: collect(DISTINCT object_alias.display)
+                       aliases: object_aliases
                    } END AS object,
-                   collect(DISTINCT evidence {
-                       .id, .source, .text,
-                       ingested_at: toString(evidence.ingested_at)
-                   }) AS evidence
+                   evidence_items AS evidence
             ORDER BY claim.status, claim.id
             LIMIT $limit
             """,
