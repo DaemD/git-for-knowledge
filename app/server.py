@@ -4,6 +4,7 @@ from typing import Any
 
 import uvicorn
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
@@ -46,6 +47,12 @@ mcp = FastMCP(
     stateless_http=True,
     json_response=True,
     streamable_http_path="/",
+    # Railway terminates TLS and validates the public host at its edge. The MCP
+    # SDK's localhost-oriented default otherwise rejects Railway's forwarded Host
+    # header with HTTP 421 before a tool request reaches this application.
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+    ),
 )
 
 
