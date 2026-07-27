@@ -11,12 +11,7 @@ from starlette.routing import Mount, Route
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.config import get_settings
-from app.models import (
-    EntityResult,
-    NeighborhoodResult,
-    PushMemoryResult,
-    SearchResult,
-)
+from app.models import RecallResult, RememberResult
 from app.nams import NamsStore
 from app.service import KnowledgeService, validate_knowledge_id
 
@@ -37,11 +32,10 @@ runtime = Runtime()
 mcp = FastMCP(
     name="Shared Knowledge Graph",
     instructions=(
-        "This server is the persistent memory for the knowledge base in its URL. "
-        "Before answering questions about the project, call "
-        "get_relevant_context. When the user states durable project knowledge, "
-        "call push_memory. Base answers on returned claims and evidence; do not "
-        "invent missing facts."
+        "This server is persistent shared memory. Before answering a question "
+        "that may depend on stored knowledge, call recall. When the user asks "
+        "to preserve durable knowledge, call remember. Use the context and "
+        "sources returned by recall, and do not invent missing facts."
     ),
     stateless_http=True,
     json_response=True,
@@ -61,87 +55,36 @@ def _service() -> KnowledgeService:
     return runtime.service
 
 
-def _knowledge_id(*, allow_bootstrap: bool = False) -> str:
+def _knowledge_id() -> str:
     knowledge_id = knowledge_scope.get()
     if knowledge_id is None:
         raise ValueError("Missing knowledge ID in the MCP URL")
-    if allow_bootstrap and knowledge_id == "bootstrap":
-        return knowledge_id
     return validate_knowledge_id(knowledge_id)
 
 
 @mcp.tool()
-async def create_knowledge_base() -> dict[str, str]:
-    """Return the knowledge ID bound to this NAMS workspace."""
-    if _knowledge_id(allow_bootstrap=True) != "bootstrap":
-        raise ValueError("Connect to /mcp/bootstrap to create a knowledge base")
-    knowledge_id = await _service().create_knowledge_base()
-    return {
-        "knowledge_id": knowledge_id,
-        "mcp_path": f"/mcp/{knowledge_id}",
-    }
+async def remember(text: str) -> RememberResult:
+    """Remember durable natural-language knowledge for other AI clients.
 
-
-@mcp.tool()
-async def push_memory(
-    text: str,
-    source: str = "user",
-    idempotency_key: str | None = None,
-) -> PushMemoryResult:
-    """Store durable natural-language knowledge in this URL's knowledge base.
-
-    Use this when the user states stable facts, decisions, architecture,
-    terminology, rationale, or changes that should be available to other AIs.
-    NAMS stores the source message and asynchronously extracts, embeds,
-    deduplicates, and links graph entities in the configured workspace.
+    Use this only when the user asks to preserve stable facts, decisions,
+    architecture, terminology, rationale, or changes. NAMS stores the message
+    and asynchronously updates the shared graph.
     """
-    return await _service().push_memory(
-        _knowledge_id(),
-        text,
-        source,
-        idempotency_key,
-    )
+    return await _service().remember(_knowledge_id(), text)
 
 
 @mcp.tool()
-async def get_relevant_context(
-    query: str,
+async def recall(
+    question: str,
     limit: int = 5,
-) -> SearchResult:
-    """Retrieve evidence-backed context before answering a project question.
+) -> RecallResult:
+    """Recall relevant shared memory for answering a question.
 
-    Call this for every question that may depend on shared project knowledge.
-    If insufficient_evidence is true, say that the graph does not contain enough
-    evidence rather than guessing.
+    This returns context, entities, relationships, and sources. Use those
+    memories to formulate the answer. If found is false, say that shared memory
+    does not contain enough information rather than guessing.
     """
-    return await _service().search(_knowledge_id(), query, limit)
-
-
-@mcp.tool()
-async def search_knowledge(query: str, limit: int = 5) -> SearchResult:
-    """Search this knowledge graph for entities, claims, and source evidence."""
-    return await _service().search(_knowledge_id(), query, limit)
-
-
-@mcp.tool()
-async def get_entity(entity_id: str) -> EntityResult:
-    """Retrieve one entity with its aliases, claims, and supporting evidence."""
-    return await _service().get_entity(_knowledge_id(), entity_id)
-
-
-@mcp.tool()
-async def get_neighborhood(
-    entity_id: str,
-    depth: int = 1,
-    limit: int = 50,
-) -> NeighborhoodResult:
-    """Traverse one or two bounded claim hops around an entity."""
-    return await _service().get_neighborhood(
-        _knowledge_id(),
-        entity_id,
-        depth,
-        limit,
-    )
+    return await _service().recall(_knowledge_id(), question, limit)
 
 
 class KnowledgeScopeMiddleware:
@@ -168,13 +111,12 @@ class KnowledgeScopeMiddleware:
             return
 
         knowledge_id = parts[1]
-        if knowledge_id != "bootstrap":
-            try:
-                validate_knowledge_id(knowledge_id)
-            except ValueError as exc:
-                response = JSONResponse({"error": str(exc)}, status_code=400)
-                await response(scope, receive, send)
-                return
+        try:
+            validate_knowledge_id(knowledge_id)
+        except ValueError as exc:
+            response = JSONResponse({"error": str(exc)}, status_code=400)
+            await response(scope, receive, send)
+            return
 
         token = knowledge_scope.set(knowledge_id)
         child_scope: dict[str, Any] = dict(scope)
@@ -188,13 +130,11 @@ class KnowledgeScopeMiddleware:
 
 
 async def health(_: Any) -> JSONResponse:
-    settings = get_settings()
     return JSONResponse(
         {
             "status": "ok" if runtime.service is not None else "starting",
             "service": "shared-knowledge-mcp",
             "backend": "nams",
-            "knowledge_id": settings.effective_knowledge_id,
         }
     )
 

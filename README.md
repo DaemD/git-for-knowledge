@@ -26,17 +26,14 @@ knows the public MCP URL can use the tools exposed by this service.
 
 ## MCP tools
 
-- `create_knowledge_base`: returns the ID bound to the configured NAMS workspace.
-- `push_memory`: queues natural language for NAMS-managed graph ingestion.
-- `get_relevant_context`: evidence-first retrieval intended to run before project
-  answers.
-- `search_knowledge`: searches entities and claims.
-- `get_entity`: retrieves one entity and its evidence-backed claims.
-- `get_neighborhood`: traverses one or two bounded claim hops.
+- `remember`: queues durable natural language for NAMS-managed graph ingestion.
+- `recall`: retrieves relevant context, entities, relationships, and sources for
+  the connected AI to use in its answer.
 
-The server instructions ask clients to retrieve context before project answers
-and push durable information. MCP cannot force every host application to invoke a
-tool, so add an equivalent instruction in clients that support project rules.
+The server instructions ask clients to call `recall` before memory-dependent
+answers and `remember` when the user requests durable storage. MCP cannot force
+every host application to invoke a tool, so add an equivalent instruction in
+clients that support project rules.
 
 ## Local setup
 
@@ -62,16 +59,10 @@ Health check:
 GET http://127.0.0.1:8000/health
 ```
 
-Use MCP Inspector or an MCP client against:
+Use MCP Inspector or an MCP client against the configured knowledge ID:
 
 ```text
-http://127.0.0.1:8000/mcp/bootstrap
-```
-
-Call `create_knowledge_base`, then reconnect using the returned path:
-
-```text
-http://127.0.0.1:8000/mcp/kg_<generated-id>
+http://127.0.0.1:8000/mcp/kg_<configured-id>
 ```
 
 ## Cursor configuration
@@ -92,9 +83,9 @@ Create `.cursor/mcp.json` in the client project:
 Add a project rule:
 
 ```text
-Before answering questions that may depend on project knowledge, call
-get_relevant_context. When the user states durable project information, call
-push_memory. Cite returned evidence and do not invent missing facts.
+Before answering a question that may depend on shared knowledge, call recall.
+When the user asks to preserve durable information, call remember. Use returned
+context and sources, and do not invent missing facts.
 ```
 
 Use the same URL in another compatible AI client to share the graph.
@@ -109,19 +100,17 @@ Use the same URL in another compatible AI client to share the graph.
    - `KNOWLEDGE_ID` (set this to preserve an existing MCP URL)
    - `MEMORY_WORKSPACE_ID` only for an admin/header-scoped key
 4. Generate a public Railway domain.
-5. Connect to `https://DOMAIN/mcp/bootstrap` once to create a knowledge ID.
-6. Give the resulting knowledge-specific MCP URL to each AI client.
+5. Give `https://DOMAIN/mcp/$KNOWLEDGE_ID` to each AI client.
 
 Railway supplies `PORT`; the container listens on that value. `/health` is used
 for deployment health checks.
 
 ## NAMS ingestion
 
-`push_memory` calls NAMS `add_message`. NAMS runs its extraction pipeline
+`remember` calls NAMS `add_message`. NAMS runs its extraction pipeline
 server-side and creates `Entity`, `MENTIONS`, and `RELATED_TO` graph structures
-asynchronously. A successful push therefore reports `ingestion_status="queued"`;
-new entities may take a few seconds to appear in searches and in the NAMS
-console.
+asynchronously. A successful call reports `status="processing"`; new entities
+may take a few seconds to appear in `recall` and in the NAMS console.
 
 ## Tests
 

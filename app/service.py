@@ -4,13 +4,10 @@ from typing import Any
 
 from app.models import (
     ClaimView,
-    EntityResult,
     EntityView,
     EvidenceView,
-    NeighborhoodResult,
-    PushMemoryResult,
-    SearchHit,
-    SearchResult,
+    RecallResult,
+    RememberResult,
 )
 from app.nams import NamsStore
 from app.utils import stable_id
@@ -32,142 +29,71 @@ class KnowledgeService:
         self._store = store
         self._knowledge_id = validate_knowledge_id(knowledge_id)
 
-    async def create_knowledge_base(self) -> str:
-        await self._store.ensure_conversation(self._knowledge_id)
-        return self._knowledge_id
-
-    async def push_memory(
-        self,
-        knowledge_id: str,
-        text: str,
-        source: str,
-        idempotency_key: str | None = None,
-    ) -> PushMemoryResult:
+    async def remember(self, knowledge_id: str, text: str) -> RememberResult:
         self._validate_scope(knowledge_id)
-        # NAMS currently deduplicates extracted entities but does not expose
-        # durable message idempotency or arbitrary source metadata.
-        del source, idempotency_key
         text = text.strip()
         if not text:
             raise ValueError("Memory text cannot be empty")
 
-        memory_id, conversation_id = await self._store.add_memory(
-            self._knowledge_id,
-            text,
-        )
-        return PushMemoryResult(
-            knowledge_id=self._knowledge_id,
-            memory_id=memory_id,
-            conversation_id=conversation_id,
-        )
+        memory_id, _ = await self._store.add_memory(self._knowledge_id, text)
+        return RememberResult(memory_id=memory_id)
 
-    async def search(
+    async def recall(
         self,
         knowledge_id: str,
-        query: str,
+        question: str,
         limit: int = 5,
-    ) -> SearchResult:
+    ) -> RecallResult:
         self._validate_scope(knowledge_id)
-        query = query.strip()
-        if not query:
-            raise ValueError("Search query cannot be empty")
+        question = question.strip()
+        if not question:
+            raise ValueError("Recall question cannot be empty")
         limit = max(1, min(limit, 20))
 
-        entities, context = await asyncio.gather(
-            self._store.search_entities(query, limit),
-            self._store.get_context(self._knowledge_id, query),
+        nams_entities, context = await asyncio.gather(
+            self._store.search_entities(question, limit),
+            self._store.get_context(self._knowledge_id, question),
         )
         relationship_batches = await asyncio.gather(
             *(
                 self._store.get_relationships(str(entity.id))
-                for entity in entities
+                for entity in nams_entities
             )
         )
         history_batches = await asyncio.gather(
             *(
                 self._store.get_entity_history(str(entity.id))
-                for entity in entities
+                for entity in nams_entities
             )
         )
 
-        hits: list[SearchHit] = []
-        for rank, (entity, relationship_rows, history) in enumerate(
-            zip(entities, relationship_batches, history_batches, strict=True)
-        ):
-            evidence = self._history_to_evidence(history)
-            hits.append(
-                SearchHit(
-                    entity=self._entity_to_view(entity),
-                    score=1.0 / (rank + 1),
-                    claims=[
-                        self._relationship_to_claim(row, evidence)
-                        for row in relationship_rows
-                    ],
-                )
-            )
+        entities = [self._entity_to_view(entity) for entity in nams_entities]
+        sources_by_id: dict[str, EvidenceView] = {}
+        for history in history_batches:
+            for source in self._history_to_evidence(history):
+                sources_by_id.setdefault(source.id, source)
 
-        return SearchResult(
-            query=query,
-            hits=hits,
+        relationships_by_id: dict[str, ClaimView] = {}
+        sources = list(sources_by_id.values())
+        for rows in relationship_batches:
+            for row in rows:
+                relationship = self._relationship_to_claim(row, sources)
+                relationships_by_id.setdefault(relationship.id, relationship)
+
+        return RecallResult(
+            question=question,
             context=context,
-            insufficient_evidence=not hits,
-        )
-
-    async def get_entity(
-        self,
-        knowledge_id: str,
-        entity_id: str,
-    ) -> EntityResult:
-        self._validate_scope(knowledge_id)
-        entity = await self._store.get_entity(entity_id)
-        if entity is None:
-            raise ValueError("Entity not found in this NAMS workspace")
-        relationships, history = await asyncio.gather(
-            self._store.get_relationships(entity_id),
-            self._store.get_entity_history(entity_id),
-        )
-        evidence = self._history_to_evidence(history)
-        return EntityResult(
-            entity=self._entity_to_view(entity),
-            claims=[
-                self._relationship_to_claim(row, evidence)
-                for row in relationships
-            ],
-        )
-
-    async def get_neighborhood(
-        self,
-        knowledge_id: str,
-        entity_id: str,
-        depth: int = 1,
-        limit: int = 50,
-    ) -> NeighborhoodResult:
-        self._validate_scope(knowledge_id)
-        depth = max(1, min(depth, 2))
-        limit = max(1, min(limit, 100))
-        entity_rows, relationship_rows, truncated = (
-            await self._store.get_neighborhood(entity_id, depth, limit)
-        )
-        if not entity_rows:
-            raise ValueError("Entity not found in this NAMS workspace")
-
-        entities = [self._entity_to_view(row) for row in entity_rows]
-        return NeighborhoodResult(
-            center=entities[0],
             entities=entities,
-            claims=[
-                self._relationship_to_claim(row, [])
-                for row in relationship_rows
-            ],
-            truncated=truncated,
+            relationships=list(relationships_by_id.values()),
+            sources=sources,
+            found=bool(entities or context),
         )
 
     def _validate_scope(self, knowledge_id: str) -> None:
         validate_knowledge_id(knowledge_id)
         if knowledge_id != self._knowledge_id:
             raise ValueError(
-                "This MCP service is bound to a different NAMS workspace. "
-                "Use /mcp/bootstrap to retrieve its knowledge ID."
+                "This MCP service is bound to a different NAMS workspace."
             )
 
     @staticmethod

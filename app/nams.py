@@ -73,20 +73,6 @@ class NamsStore:
             session_id=conversation_id,
         )
 
-    async def get_entity(self, entity_id: str) -> dict[str, Any] | None:
-        rows = await self._client.query.cypher(
-            """
-            MATCH (entity:Entity)
-            WHERE toString(entity.id) = $entity_id
-            RETURN properties(entity) AS entity
-            LIMIT 1
-            """,
-            {"entity_id": entity_id},
-        )
-        if not rows:
-            return None
-        return dict(rows[0].get("entity") or {})
-
     async def get_relationships(self, entity_id: str) -> list[dict[str, Any]]:
         rows = await self._client.query.cypher(
             """
@@ -108,59 +94,3 @@ class NamsStore:
 
     async def get_entity_history(self, entity_id: str) -> list[dict[str, Any]]:
         return await self._client.long_term.get_entity_history(entity_id)
-
-    async def get_neighborhood(
-        self,
-        entity_id: str,
-        depth: int,
-        limit: int,
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], bool]:
-        center = await self.get_entity(entity_id)
-        if center is None:
-            return [], [], False
-
-        fetch_limit = max(1, limit)
-        entity_rows = await self._client.query.cypher(
-            f"""
-            MATCH (center:Entity)
-            WHERE toString(center.id) = $entity_id
-            MATCH path = (center)-[*1..{depth}]-(neighbor:Entity)
-            RETURN DISTINCT properties(neighbor) AS entity
-            LIMIT $fetch_limit
-            """,
-            {
-                "entity_id": entity_id,
-                "fetch_limit": fetch_limit,
-            },
-        )
-        neighbors = [dict(row.get("entity") or {}) for row in entity_rows]
-        truncated = len(neighbors) >= limit
-        neighbors = neighbors[: max(0, limit - 1)]
-        entities = [center, *neighbors]
-        entity_ids = [
-            str(entity.get("id"))
-            for entity in entities
-            if entity.get("id") is not None
-        ]
-
-        relationship_rows = await self._client.query.cypher(
-            """
-            MATCH (source:Entity)-[relationship]->(target:Entity)
-            WHERE toString(source.id) IN $entity_ids
-              AND toString(target.id) IN $entity_ids
-            RETURN properties(source) AS source,
-                   properties(target) AS target,
-                   coalesce(
-                       relationship.relation_type,
-                       relationship.relationType,
-                       type(relationship)
-                   ) AS predicate,
-                   properties(relationship) AS relationship
-            LIMIT $relationship_limit
-            """,
-            {
-                "entity_ids": entity_ids,
-                "relationship_limit": limit * 2,
-            },
-        )
-        return entities, [dict(row) for row in relationship_rows], truncated

@@ -55,50 +55,27 @@ class FakeNamsStore:
             }
         ]
 
-    async def get_entity(self, entity_id: str) -> dict | None:
-        if entity_id != "entity-neo4j":
-            return None
-        return {
-            "id": "entity-neo4j",
-            "name": "Neo4j",
-            "type": "TOOL",
-            "description": "Graph database",
-        }
-
-    async def get_neighborhood(
-        self,
-        entity_id: str,
-        depth: int,
-        limit: int,
-    ) -> tuple[list[dict], list[dict], bool]:
-        entity = await self.get_entity(entity_id)
-        return ([entity] if entity else []), [], False
-
-
-async def test_push_memory_is_queued_for_nams_extraction() -> None:
+async def test_remember_is_queued_for_nams_extraction() -> None:
     service = KnowledgeService(FakeNamsStore(), "kg_12345678")
 
-    result = await service.push_memory(
+    result = await service.remember(
         "kg_12345678",
         "Neo4j powers the shared graph.",
-        "test",
     )
 
     assert result.memory_id == "msg-1"
-    assert result.conversation_id == "conv-1"
-    assert result.ingestion_status == "queued"
-    assert result.extraction_pending
+    assert result.status == "processing"
 
 
-async def test_search_maps_nams_entities_relationships_and_history() -> None:
+async def test_recall_maps_nams_entities_relationships_and_history() -> None:
     service = KnowledgeService(FakeNamsStore(), "kg_12345678")
 
-    result = await service.search("kg_12345678", "What database is used?")
+    result = await service.recall("kg_12345678", "What database is used?")
 
-    assert not result.insufficient_evidence
-    assert result.hits[0].entity.name == "Neo4j"
-    assert result.hits[0].claims[0].predicate == "USES"
-    assert result.hits[0].claims[0].evidence[0].id == "msg-1"
+    assert result.found
+    assert result.entities[0].name == "Neo4j"
+    assert result.relationships[0].predicate == "USES"
+    assert result.sources[0].id == "msg-1"
     assert "Neo4j" in result.context
 
 
@@ -106,4 +83,4 @@ async def test_service_rejects_another_knowledge_id() -> None:
     service = KnowledgeService(FakeNamsStore(), "kg_12345678")
 
     with pytest.raises(ValueError, match="different NAMS workspace"):
-        await service.search("kg_87654321", "anything")
+        await service.recall("kg_87654321", "anything")

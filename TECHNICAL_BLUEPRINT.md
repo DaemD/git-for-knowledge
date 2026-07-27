@@ -32,8 +32,8 @@ is the hard graph boundary. This deployment exposes it through one
 `knowledge_id`; `KNOWLEDGE_ID` can preserve an existing MCP URL, otherwise a
 stable ID is derived from the API key.
 
-`/mcp/bootstrap` no longer provisions databases. It returns the ID of the
-workspace already configured for this deployment.
+There is no public bootstrap tool. The operator configures the knowledge ID and
+distributes the resulting MCP URL.
 
 ## Ingestion
 
@@ -41,7 +41,7 @@ workspace already configured for this deployment.
 2. Verify that the URL matches this deployment's workspace ID.
 3. Reuse or create one NAMS conversation for the knowledge base.
 4. Send the unmodified text to NAMS with `add_message`.
-5. Return the NAMS message ID immediately with `ingestion_status="queued"`.
+5. Return the NAMS message ID immediately with `status="processing"`.
 6. NAMS asynchronously extracts and embeds entities, resolves duplicates,
    creates `MENTIONS` links, stores semantic relationships, and updates
    observations/reflections.
@@ -81,13 +81,9 @@ KNOWLEDGE_ID=kg_<existing-id>
 
 ## MCP tools
 
-- `create_knowledge_base`: return the configured workspace's knowledge ID.
-- `push_memory`: queue a source message for NAMS ingestion.
-- `get_relevant_context`: semantic entities, relationships, history, and NAMS
-  context.
-- `search_knowledge`: the same retrieval path for explicit searches.
-- `get_entity`: exact entity lookup plus relationships and history.
-- `get_neighborhood`: bounded one- or two-hop graph traversal.
+- `remember`: queue durable knowledge for NAMS ingestion.
+- `recall`: return relevant NAMS context, entities, relationships, and sources
+  for the connected AI to use in its answer.
 
 ## Limitations
 

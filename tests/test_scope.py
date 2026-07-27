@@ -1,4 +1,9 @@
-from app.server import KnowledgeScopeMiddleware, knowledge_scope
+from app.server import KnowledgeScopeMiddleware, knowledge_scope, mcp
+
+
+async def test_public_mcp_surface_has_only_remember_and_recall() -> None:
+    tools = await mcp.list_tools()
+    assert [tool.name for tool in tools] == ["remember", "recall"]
 
 
 async def test_scope_middleware_binds_knowledge_id_and_rewrites_path() -> None:
