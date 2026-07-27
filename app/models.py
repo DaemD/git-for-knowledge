@@ -9,11 +9,20 @@ class EntityView(BaseModel):
     aliases: list[str] = Field(default_factory=list)
 
 
+class ProvenanceView(BaseModel):
+    """Client provenance retained with a NAMS source message."""
+
+    client_id: str
+    timestamp: str
+    idempotency_key: str
+
+
 class EvidenceView(BaseModel):
     id: str
     source: str
     text: str
     ingested_at: str
+    provenance: ProvenanceView | None = None
 
 
 class ClaimView(BaseModel):

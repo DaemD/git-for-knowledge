@@ -1,9 +1,17 @@
-from app.server import KnowledgeScopeMiddleware, knowledge_scope, mcp
+import re
+
+from app.server import KnowledgeScopeMiddleware, get_identity, knowledge_scope, mcp
 
 
-async def test_public_mcp_surface_has_only_remember_and_recall() -> None:
+async def test_public_mcp_surface_has_identity_remember_and_recall() -> None:
     tools = await mcp.list_tools()
-    assert [tool.name for tool in tools] == ["remember", "recall"]
+    assert [tool.name for tool in tools] == ["get_identity", "remember", "recall"]
+
+
+async def test_get_identity_returns_a_human_readable_client_id() -> None:
+    client_id = await get_identity()
+
+    assert re.fullmatch(r"[a-z]+-[a-z]+-\d{6}", client_id)
 
 
 async def test_scope_middleware_binds_knowledge_id_and_rewrites_path() -> None:

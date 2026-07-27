@@ -1,11 +1,13 @@
 import asyncio
 import re
+from datetime import datetime, timezone
 from typing import Any
 
 from app.models import (
     ClaimView,
     EntityView,
     EvidenceView,
+    ProvenanceView,
     RecallResult,
     RememberResult,
 )
@@ -14,6 +16,9 @@ from app.utils import stable_id
 
 
 KNOWLEDGE_ID_PATTERN = re.compile(r"^kg_[A-Za-z0-9_-]{8,128}$")
+PROVENANCE_FIELDS = ("client_id", "timestamp", "idempotency_key")
+MAX_PROVENANCE_VALUE_LENGTH = 256
+WEB_UNATTRIBUTED_CLIENT_ID = "web-unattributed"
 
 
 def validate_knowledge_id(knowledge_id: str) -> str:
@@ -29,13 +34,46 @@ class KnowledgeService:
         self._store = store
         self._knowledge_id = validate_knowledge_id(knowledge_id)
 
-    async def remember(self, knowledge_id: str, text: str) -> RememberResult:
+    async def remember(
+        self,
+        knowledge_id: str,
+        text: str,
+        client_id: str | None,
+        idempotency_key: str,
+    ) -> RememberResult:
         self._validate_scope(knowledge_id)
         text = text.strip()
         if not text:
             raise ValueError("Memory text cannot be empty")
 
-        memory_id, _ = await self._store.add_memory(self._knowledge_id, text)
+        client_id = self._client_id_or_default(client_id)
+        idempotency_key = self._provenance_value(
+            "idempotency_key",
+            idempotency_key,
+        )
+
+        existing_memory_id = await self._store.find_memory_by_idempotency_key(
+            self._knowledge_id,
+            idempotency_key,
+        )
+        if existing_memory_id is not None:
+            return RememberResult(
+                memory_id=existing_memory_id,
+                status="already_exists",
+            )
+
+        metadata = {
+            "client_id": client_id,
+            "timestamp": datetime.now(timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z"),
+            "idempotency_key": idempotency_key,
+        }
+        memory_id, _ = await self._store.add_memory(
+            self._knowledge_id,
+            text,
+            metadata,
+        )
         return RememberResult(memory_id=memory_id)
 
     async def recall(
@@ -67,10 +105,26 @@ class KnowledgeService:
             )
         )
 
+        message_ids = {
+            str(message_id)
+            for history in history_batches
+            for mention in history
+            for message_id in [
+                mention.get("messageId")
+                or mention.get("message_id")
+                or mention.get("id")
+            ]
+            if message_id
+        }
+        message_metadata = await self._store.get_message_metadata(
+            self._knowledge_id,
+            message_ids,
+        )
+
         entities = [self._entity_to_view(entity) for entity in nams_entities]
         sources_by_id: dict[str, EvidenceView] = {}
         for history in history_batches:
-            for source in self._history_to_evidence(history):
+            for source in self._history_to_evidence(history, message_metadata):
                 sources_by_id.setdefault(source.id, source)
 
         relationships_by_id: dict[str, ClaimView] = {}
@@ -95,6 +149,23 @@ class KnowledgeService:
             raise ValueError(
                 "This MCP service is bound to a different NAMS workspace."
             )
+
+    @staticmethod
+    def _provenance_value(name: str, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError(f"{name} cannot be empty")
+        if len(value) > MAX_PROVENANCE_VALUE_LENGTH:
+            raise ValueError(
+                f"{name} cannot exceed {MAX_PROVENANCE_VALUE_LENGTH} characters"
+            )
+        return value
+
+    @classmethod
+    def _client_id_or_default(cls, client_id: str | None) -> str:
+        if client_id is None or not client_id.strip():
+            return WEB_UNATTRIBUTED_CLIENT_ID
+        return cls._provenance_value("client_id", client_id)
 
     @staticmethod
     def _entity_to_view(entity: Any) -> EntityView:
@@ -140,9 +211,11 @@ class KnowledgeService:
             evidence=evidence,
         )
 
-    @staticmethod
+    @classmethod
     def _history_to_evidence(
+        cls,
         history: list[dict[str, Any]],
+        message_metadata: dict[str, dict[str, Any]],
     ) -> list[EvidenceView]:
         evidence: list[EvidenceView] = []
         for index, mention in enumerate(history):
@@ -173,6 +246,22 @@ class KnowledgeService:
                     source="nams",
                     text=str(text),
                     ingested_at=str(ingested_at),
+                    provenance=cls._metadata_to_provenance(
+                        message_metadata.get(str(evidence_id))
+                        or mention.get("metadata")
+                    ),
                 )
             )
         return evidence
+
+    @staticmethod
+    def _metadata_to_provenance(
+        metadata: Any,
+    ) -> ProvenanceView | None:
+        if not isinstance(metadata, dict):
+            return None
+
+        values = {field: metadata.get(field) for field in PROVENANCE_FIELDS}
+        if not all(isinstance(value, str) and value for value in values.values()):
+            return None
+        return ProvenanceView(**values)

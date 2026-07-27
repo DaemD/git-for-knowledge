@@ -1,4 +1,5 @@
 import contextlib
+import secrets
 from contextvars import ContextVar
 from typing import Any
 
@@ -29,13 +30,52 @@ class Runtime:
 
 runtime = Runtime()
 
+_IDENTITY_ADJECTIVES = (
+    "bright",
+    "clever",
+    "gentle",
+    "lively",
+    "mighty",
+    "nimble",
+    "quiet",
+    "swift",
+    "tidy",
+    "witty",
+)
+_IDENTITY_NOUNS = (
+    "badger",
+    "falcon",
+    "gecko",
+    "otter",
+    "panda",
+    "puffin",
+    "raven",
+    "tiger",
+    "walrus",
+    "wombat",
+)
+
+
+def _new_client_id() -> str:
+    """Generate a human-readable opaque installation identifier."""
+    adjective = secrets.choice(_IDENTITY_ADJECTIVES)
+    noun = secrets.choice(_IDENTITY_NOUNS)
+    number = secrets.randbelow(1_000_000)
+    return f"{adjective}-{noun}-{number:06d}"
+
 mcp = FastMCP(
     name="Shared Knowledge Graph",
     instructions=(
         "This server is persistent shared memory. Before answering a question "
         "that may depend on stored knowledge, call recall. When the user asks "
         "to preserve durable knowledge, call remember. Use the context and "
-        "sources returned by recall, and do not invent missing facts."
+        "sources returned by recall, and do not invent missing facts. Before "
+        "the first remember call in a project, read .mcp-identity from the "
+        "project root. If it is missing, call get_identity, save its returned "
+        "value in .mcp-identity, and use that value as client_id for every "
+        "remember call. Never replace an existing .mcp-identity value. Clients "
+        "without project-file access may omit client_id; it will be recorded as "
+        "web-unattributed."
     ),
     stateless_http=True,
     json_response=True,
@@ -63,14 +103,46 @@ def _knowledge_id() -> str:
 
 
 @mcp.tool()
-async def remember(text: str) -> RememberResult:
+async def get_identity() -> str:
+    """Generate a new opaque client identifier.
+
+    Before the first remember call in a project or session, check for
+    .mcp-identity in the project root. If it is absent, call this tool, save the
+    returned string in .mcp-identity, and use that value going forward. Always
+    read .mcp-identity when present and pass its content as client_id on every
+    remember call. Never regenerate an identity when .mcp-identity exists.
+    """
+    return _new_client_id()
+
+
+@mcp.tool()
+async def remember(
+    text: str,
+    idempotency_key: str,
+    client_id: str | None = None,
+) -> RememberResult:
     """Remember durable natural-language knowledge for other AI clients.
 
     Use this only when the user asks to preserve stable facts, decisions,
     architecture, terminology, rationale, or changes. NAMS stores the message
-    and asynchronously updates the shared graph.
+    and asynchronously updates the shared graph. Before the first remember
+    call in a project or session, check for .mcp-identity in the project root.
+    If it is absent, call get_identity, save the returned string in
+    .mcp-identity, and use that value going forward. Always read
+    .mcp-identity when present and pass its content as client_id on every
+    remember call. Never regenerate an identity when .mcp-identity exists.
+    Clients without project-file access may omit client_id; those messages are
+    recorded as web-unattributed.
+    Also provide a stable, client-generated idempotency_key (normally a UUID)
+    that is reused on retries. The server records the UTC timestamp; do not
+    provide one.
     """
-    return await _service().remember(_knowledge_id(), text)
+    return await _service().remember(
+        _knowledge_id(),
+        text,
+        client_id,
+        idempotency_key,
+    )
 
 
 @mcp.tool()
@@ -82,7 +154,14 @@ async def recall(
 
     This returns context, entities, relationships, and sources. Use those
     memories to formulate the answer. If found is false, say that shared memory
-    does not contain enough information rather than guessing.
+    does not contain enough information rather than guessing. Before the first
+    remember call in a project or session, check for .mcp-identity in the
+    project root. If it is absent, call get_identity, save the returned string
+    in .mcp-identity, and use that value going forward. Always read
+    .mcp-identity when present and pass its content as client_id on every
+    remember call. Never regenerate an identity when .mcp-identity exists.
+    Clients without project-file access may omit client_id; those messages are
+    recorded as web-unattributed.
     """
     return await _service().recall(_knowledge_id(), question, limit)
 

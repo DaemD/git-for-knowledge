@@ -26,7 +26,10 @@ knows the public MCP URL can use the tools exposed by this service.
 
 ## MCP tools
 
-- `remember`: queues durable natural language for NAMS-managed graph ingestion.
+- `get_identity`: generates an opaque, human-readable client identifier for a
+  client to save locally.
+- `remember`: queues durable natural language and its client provenance for
+  NAMS-managed graph ingestion.
 - `recall`: retrieves relevant context, entities, relationships, and sources for
   the connected AI to use in its answer.
 
@@ -84,11 +87,80 @@ Add a project rule:
 
 ```text
 Before answering a question that may depend on shared knowledge, call recall.
-When the user asks to preserve durable information, call remember. Use returned
-context and sources, and do not invent missing facts.
+Before the first remember call in this project, read `.mcp-identity` from the
+project root. If it is missing, call get_identity, save the returned value to
+`.mcp-identity`, and use that value as client_id for every remember call. Never
+replace an existing `.mcp-identity` value. When the user asks to preserve durable
+information, call remember. Use returned context and sources, and do not invent
+missing facts.
 ```
 
 Use the same URL in another compatible AI client to share the graph.
+
+## Client identity, provenance, and retry safety
+
+The first AI client working in a project handles the identity automatically:
+
+1. Check for `.mcp-identity` in the client project's root directory.
+2. If the file does not exist, call `get_identity` and save its returned string
+   as the complete file content.
+3. If the file exists, read its content instead. Never call `get_identity` to
+   replace an existing value.
+4. Pass the file content as `client_id` on every `remember` call.
+
+The MCP server cannot read or write the client's filesystem. The tool
+descriptions give compatible AI clients these instructions, so copying the MCP
+configuration is the only human setup required.
+
+Clients without project-file access, such as a browser-hosted chat interface,
+may omit `client_id`. The service records those pushes as
+`web-unattributed` instead of rejecting them. This preserves ingestion and
+idempotency, but not per-client provenance.
+
+`remember` uses these fields in addition to `text`:
+
+| Field | Supplied by | Purpose |
+| --- | --- | --- |
+| `client_id` | MCP client | Optional. Opaque value read from `.mcp-identity`; omitted values become `web-unattributed`. |
+| `idempotency_key` | MCP client | Stable client-generated UUID (recommended) reused when retrying the same push. |
+| `timestamp` | This server | UTC time at which the server accepts a new push. Do not send this field. |
+
+For example, an MCP client should call `remember` with:
+
+```json
+{
+  "text": "The production API uses Neo4j Aura.",
+  "client_id": "swift-otter-482193",
+  "idempotency_key": "5be1f3e7-c742-46a3-8e1a-e299a0cb6863"
+}
+```
+
+The service stores `client_id`, `timestamp`, and `idempotency_key` in NAMS
+message metadata. Before adding a message, it checks the latest 100 messages
+in the shared conversation for the same `idempotency_key`. A matching retry is
+not re-ingested; `remember` returns the original `memory_id` with
+`status="already_exists"`.
+
+`recall` preserves NAMS as `sources[].source` and returns provenance for a
+matching source message as `sources[].provenance`:
+
+```json
+{
+  "id": "msg-1",
+  "source": "nams",
+  "text": "The production API uses Neo4j Aura.",
+  "ingested_at": "2026-07-28T12:00:00Z",
+  "provenance": {
+    "client_id": "swift-otter-482193",
+    "timestamp": "2026-07-28T12:00:00Z",
+    "idempotency_key": "5be1f3e7-c742-46a3-8e1a-e299a0cb6863"
+  }
+}
+```
+
+`client_id` is an installation-level label, not a verified human identity or
+an authorization mechanism. Authentication and user identity are separate,
+deferred work.
 
 ## Railway deployment
 
