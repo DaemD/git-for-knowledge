@@ -1,6 +1,7 @@
+import hashlib
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,20 +12,22 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    neo4j_uri: str
-    neo4j_username: str = "neo4j"
-    neo4j_password: str
-    neo4j_database: str = "neo4j"
-
-    openai_api_key: str
-    openai_base_url: str | None = None
-    openai_model: str = "gpt-5-mini"
-    openai_embedding_model: str = "text-embedding-3-small"
-    embedding_dimensions: int = 1536
+    memory_api_key: SecretStr
+    memory_endpoint: str = "https://memory.neo4jlabs.com/v1"
+    memory_workspace_id: str | None = None
+    knowledge_id: str | None = None
 
     host: str = "0.0.0.0"
     port: int = Field(default=8000, ge=1, le=65535)
     mcp_base_path: str = "/mcp"
+
+    @property
+    def effective_knowledge_id(self) -> str:
+        if self.knowledge_id:
+            return self.knowledge_id
+        key = self.memory_api_key.get_secret_value().encode("utf-8")
+        digest = hashlib.sha256(key).hexdigest()[:32]
+        return f"kg_{digest}"
 
 
 @lru_cache

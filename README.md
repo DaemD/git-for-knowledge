@@ -1,9 +1,10 @@
 # Shared Knowledge Graph MCP
 
 A prototype shared memory service for AI assistants. Users push natural-language
-knowledge; the service extracts evidence-backed entities and claims into Neo4j.
-Any MCP client connected to the same knowledge-specific URL can retrieve that
-context.
+knowledge to Neo4j Agent Memory Service (NAMS), which stores the message and
+asynchronously extracts, embeds, deduplicates, and links entities in the
+workspace's Neo4j graph. Any MCP client connected to the same
+knowledge-specific URL can retrieve that context.
 
 ## Architecture
 
@@ -13,18 +14,20 @@ Cursor / Claude / another MCP client
     Streamable HTTP /mcp/{knowledge_id}
                  |
         Python MCP service
-          |             |
-     OpenAI API      Neo4j Aura
+                 |
+       NAMS hosted memory API
+                 |
+    NAMS-managed or external Aura graph
 ```
 
-The generated `knowledge_id` is a capability identifier. It scopes every graph
-query, but it is not authentication. Anyone who knows the URL can use that graph.
+The `knowledge_id` is a capability identifier for the one NAMS workspace bound
+to this deployment. The NAMS API key provides workspace isolation; anyone who
+knows the public MCP URL can use the tools exposed by this service.
 
 ## MCP tools
 
-- `create_knowledge_base`: creates a graph ID from `/mcp/bootstrap`.
-- `push_memory`: accepts natural language and stores entities, claims, and source
-  evidence.
+- `create_knowledge_base`: returns the ID bound to the configured NAMS workspace.
+- `push_memory`: queues natural language for NAMS-managed graph ingestion.
 - `get_relevant_context`: evidence-first retrieval intended to run before project
   answers.
 - `search_knowledge`: searches entities and claims.
@@ -46,8 +49,8 @@ pip install -e ".[dev]"
 Copy-Item .env.example .env
 ```
 
-Put the rotated Neo4j credentials and the LLM provider key in `.env`. Never
-commit `.env`.
+Put the NAMS workspace API key in `.env`. Never commit `.env`. No direct Neo4j
+or OpenAI credentials are required by this MCP service.
 
 ```powershell
 uvicorn app.server:app --reload
@@ -101,14 +104,10 @@ Use the same URL in another compatible AI client to share the graph.
 1. Push this directory to a repository and create a Railway service from it.
 2. Railway builds the included `Dockerfile`.
 3. Add these Railway variables:
-   - `NEO4J_URI`
-   - `NEO4J_USERNAME`
-   - `NEO4J_PASSWORD`
-   - `NEO4J_DATABASE`
-   - `OPENAI_API_KEY`
-   - `OPENAI_MODEL`
-   - `OPENAI_EMBEDDING_MODEL`
-   - `EMBEDDING_DIMENSIONS`
+   - `MEMORY_API_KEY`
+   - `MEMORY_ENDPOINT` (normally `https://memory.neo4jlabs.com/v1`)
+   - `KNOWLEDGE_ID` (set this to preserve an existing MCP URL)
+   - `MEMORY_WORKSPACE_ID` only for an admin/header-scoped key
 4. Generate a public Railway domain.
 5. Connect to `https://DOMAIN/mcp/bootstrap` once to create a knowledge ID.
 6. Give the resulting knowledge-specific MCP URL to each AI client.
@@ -116,20 +115,13 @@ Use the same URL in another compatible AI client to share the graph.
 Railway supplies `PORT`; the container listens on that value. `/health` is used
 for deployment health checks.
 
-## Graph model
+## NAMS ingestion
 
-```text
-(KnowledgeBase)-[:CONTAINS]->(Entity)
-(Alias)-[:ALIAS_OF]->(Entity)
-(Claim)-[:SUBJECT]->(Entity)
-(Claim)-[:OBJECT]->(Entity)
-(Claim)-[:SUPPORTED_BY]->(Evidence)
-(new Claim)-[:SUPERSEDES]->(old Claim)
-```
-
-Generated semantics such as `USES`, `REPLACED`, or `DEPENDS_ON` are stored in
-`Claim.predicate`. This keeps predicates open-ended while allowing each claim to
-retain evidence, confidence, temporal fields, and replacement history.
+`push_memory` calls NAMS `add_message`. NAMS runs its extraction pipeline
+server-side and creates `Entity`, `MENTIONS`, and `RELATED_TO` graph structures
+asynchronously. A successful push therefore reports `ingestion_status="queued"`;
+new entities may take a few seconds to appear in searches and in the NAMS
+console.
 
 ## Tests
 
@@ -137,5 +129,5 @@ retain evidence, confidence, temporal fields, and replacement history.
 pytest
 ```
 
-The unit tests do not require Neo4j or an API key. End-to-end ingestion requires
-both configured services.
+The unit tests do not require NAMS or an API key. End-to-end ingestion requires
+the configured NAMS workspace.

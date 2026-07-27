@@ -11,14 +11,13 @@ from starlette.routing import Mount, Route
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.config import get_settings
-from app.graph import GraphRepository
-from app.llm import KnowledgeLLM
 from app.models import (
     EntityResult,
     NeighborhoodResult,
     PushMemoryResult,
     SearchResult,
 )
+from app.nams import NamsStore
 from app.service import KnowledgeService, validate_knowledge_id
 
 
@@ -29,7 +28,7 @@ knowledge_scope: ContextVar[str | None] = ContextVar(
 
 
 class Runtime:
-    graph: GraphRepository | None = None
+    store: NamsStore | None = None
     service: KnowledgeService | None = None
 
 
@@ -73,7 +72,7 @@ def _knowledge_id(*, allow_bootstrap: bool = False) -> str:
 
 @mcp.tool()
 async def create_knowledge_base() -> dict[str, str]:
-    """Create an unguessable knowledge ID from the /mcp/bootstrap endpoint."""
+    """Return the knowledge ID bound to this NAMS workspace."""
     if _knowledge_id(allow_bootstrap=True) != "bootstrap":
         raise ValueError("Connect to /mcp/bootstrap to create a knowledge base")
     knowledge_id = await _service().create_knowledge_base()
@@ -93,8 +92,8 @@ async def push_memory(
 
     Use this when the user states stable facts, decisions, architecture,
     terminology, rationale, or changes that should be available to other AIs.
-    The server extracts and resolves entities while retaining the original text
-    as evidence.
+    NAMS stores the source message and asynchronously extracts, embeds,
+    deduplicates, and links graph entities in the configured workspace.
     """
     return await _service().push_memory(
         _knowledge_id(),
@@ -189,10 +188,13 @@ class KnowledgeScopeMiddleware:
 
 
 async def health(_: Any) -> JSONResponse:
+    settings = get_settings()
     return JSONResponse(
         {
             "status": "ok" if runtime.service is not None else "starting",
             "service": "shared-knowledge-mcp",
+            "backend": "nams",
+            "knowledge_id": settings.effective_knowledge_id,
         }
     )
 
@@ -200,18 +202,17 @@ async def health(_: Any) -> JSONResponse:
 @contextlib.asynccontextmanager
 async def lifespan(_: Starlette):
     settings = get_settings()
-    graph = GraphRepository(settings)
-    llm = KnowledgeLLM(settings)
-    await graph.initialize()
-    runtime.graph = graph
-    runtime.service = KnowledgeService(graph, llm)
+    store = NamsStore(settings)
+    await store.connect()
+    runtime.store = store
+    runtime.service = KnowledgeService(store, settings.effective_knowledge_id)
     try:
         async with mcp.session_manager.run():
             yield
     finally:
         runtime.service = None
-        runtime.graph = None
-        await graph.close()
+        runtime.store = None
+        await store.close()
 
 
 scoped_mcp_app = KnowledgeScopeMiddleware(mcp.streamable_http_app())

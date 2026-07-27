@@ -2,108 +2,100 @@
 
 ## Prototype hypothesis
 
-A centrally hosted, evidence-backed knowledge graph can provide persistent shared
-memory to otherwise isolated AI clients. The prototype succeeds when one client
-can write natural-language knowledge and a second client, using the same MCP URL,
-can retrieve and correctly use it.
+A centrally hosted knowledge graph can provide persistent shared memory to
+otherwise isolated AI clients. The prototype succeeds when one client writes
+natural-language knowledge and another client, using the same MCP URL, retrieves
+the resulting NAMS context and graph entities.
 
 ## Scope
 
 Included:
 
-- Natural-language ingestion
-- Dynamic entity kinds and predicates
-- Conservative entity resolution
-- Evidence and basic supersession
-- Hybrid lexical/vector retrieval plus bounded traversal
+- Natural-language ingestion through NAMS
+- Server-managed extraction, embeddings, deduplication, and observations
+- Semantic entity search and bounded relationship traversal
+- Source messages and NAMS entity history
 - Shared Streamable HTTP MCP access
 
 Excluded:
 
-- Authentication and permissions
+- Authentication and permissions beyond an unguessable MCP URL
+- Dynamic NAMS workspace provisioning
 - Organizations and collaboration workflows
 - Git-style branches, commits, and conflict resolution
-- UI, queues, and production scaling
+- A custom extraction or embedding pipeline
 
-## Data model
+## Isolation
 
-Every node carries `knowledge_id`, and all queries enforce it.
+The configured `MEMORY_API_KEY` is bound to one NAMS workspace. That workspace
+is the hard graph boundary. This deployment exposes it through one
+`knowledge_id`; `KNOWLEDGE_ID` can preserve an existing MCP URL, otherwise a
+stable ID is derived from the API key.
 
-- `KnowledgeBase`: generated opaque ID.
-- `Entity`: immutable ID, canonical name, dynamic kind, summary, embedding.
-- `Alias`: normalized surface form connected to an entity. The same normalized
-  name may map to multiple entities, preserving ambiguity.
-- `Evidence`: original text, source, ingestion time, and embedding.
-- `Claim`: dynamic predicate, status, confidence, polarity, validity fields, and
-  deterministic fingerprint.
-
-Claims are first-class nodes instead of arbitrary Neo4j relationship types. This
-allows multiple evidence records, contradictions, and supersession without
-discarding the old context.
+`/mcp/bootstrap` no longer provisions databases. It returns the ID of the
+workspace already configured for this deployment.
 
 ## Ingestion
 
 1. Scope the request from `/mcp/{knowledge_id}`.
-2. Store and embed the original text as immutable evidence.
-3. Ask one server-controlled LLM for validated entities and claims.
-4. Generate candidates from exact aliases, Neo4j full-text search, and vector
-   similarity.
-5. Ask the LLM to choose `LINK`, `NEW`, or `UNRESOLVED`; require high confidence
-   before linking.
-6. Create or reuse entities.
-7. Fingerprint and upsert claims.
-8. If the text explicitly replaces a fact, retain the old claim as `superseded`
-   and link the new claim to it.
+2. Verify that the URL matches this deployment's workspace ID.
+3. Reuse or create one NAMS conversation for the knowledge base.
+4. Send the unmodified text to NAMS with `add_message`.
+5. Return the NAMS message ID immediately with `ingestion_status="queued"`.
+6. NAMS asynchronously extracts and embeds entities, resolves duplicates,
+   creates `MENTIONS` links, stores semantic relationships, and updates
+   observations/reflections.
 
-The original text is always retained because structured extraction can lose
-nuance or be incorrect.
+The service no longer calls OpenAI directly and no longer writes custom Cypher.
+NAMS may still use models internally as part of its managed extraction service.
 
 ## Retrieval
 
-1. Embed the question.
-2. Search aliases lexically and entities/evidence semantically.
-3. Fuse rankings rather than comparing incompatible raw scores.
-4. Expand selected entities through at most two claim hops.
-5. Return structured entities, claims, statuses, and source evidence.
-6. Let the client model synthesize the final answer and abstain when
-   `insufficient_evidence` is true.
+1. Search workspace entities through NAMS semantic search.
+2. Retrieve NAMS's three-tier conversation context.
+3. Read entity relationships through NAMS's read-only Cypher endpoint.
+4. Retrieve entity mention history for source evidence.
+5. Map the results to the existing MCP response objects.
+6. Let the consuming AI synthesize the final answer.
+
+Newly pushed information is eventually consistent and may take a few seconds to
+appear in entity search.
 
 ## MCP deployment
 
-One stateless MCP server runs on Railway. Its middleware converts a
-knowledge-specific URL into a request scope:
+One stateless MCP server runs on Railway:
 
 ```text
 https://DOMAIN/mcp/kg_<id>
 ```
 
-The model never needs to provide the ID as a tool argument. `/mcp/bootstrap`
-exposes `create_knowledge_base`; after creation, clients reconnect to the scoped
-URL.
+Required Railway variables:
 
-## Demo acceptance cases
+```text
+MEMORY_API_KEY
+MEMORY_ENDPOINT=https://memory.neo4jlabs.com/v1
+KNOWLEDGE_ID=kg_<existing-id>
+```
 
-1. Ingest “Our backend uses Neo4j” twice; the second ingestion reuses the entity
-   and claim.
-2. Ingest “Cursor”, then “Cursor IDE”; resolution should reuse the entity when
-   context supports it.
-3. Ingest Apple the company and apple the fruit; they must remain separate.
-4. Ingest “We migrated from FastAPI to NestJS”; the graph retains FastAPI and
-   records the replacement.
-5. Ask why Neo4j was chosen; the response must include source evidence.
-6. Store a multi-hop chain and retrieve the two-hop answer.
-7. Write from client A and read from client B using the same URL.
+`MEMORY_WORKSPACE_ID` is needed only for admin/header-scoped deployments.
 
-False entity merges and unsupported answers are considered more serious than
-temporary duplicates or abstention.
+## MCP tools
 
-## Known limitations
+- `create_knowledge_base`: return the configured workspace's knowledge ID.
+- `push_memory`: queue a source message for NAMS ingestion.
+- `get_relevant_context`: semantic entities, relationships, history, and NAMS
+  context.
+- `search_knowledge`: the same retrieval path for explicit searches.
+- `get_entity`: exact entity lookup plus relationships and history.
+- `get_neighborhood`: bounded one- or two-hop graph traversal.
 
-- MCP instructions encourage but cannot force a host LLM to call memory tools.
-- The LLM confidence value is not calibrated probability.
-- Knowledge IDs are bearer capabilities, not real authorization.
-- Full entity resolution and contradiction detection remain hard research
-  problems.
-- Embedding dimensions must match the configured Neo4j vector indexes.
-- The implementation targets the stable MCP Python SDK 1.x; v2 requires a
-  deliberate migration.
+## Limitations
+
+- A workspace-bound API key supports one hard-isolated graph.
+- NAMS ingestion is asynchronous.
+- The hosted API controls extraction and ontology behavior.
+- NAMS does not currently provide durable request idempotency through the Python
+  message API; entity deduplication is server-managed, but retrying a push can
+  create another source message.
+- The MCP URL remains a bearer capability rather than user authentication.
+- NAMS is a Neo4j Labs project and should be treated as experimental.

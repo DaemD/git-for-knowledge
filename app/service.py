@@ -1,10 +1,9 @@
+import asyncio
 import re
+from typing import Any
 
-from app.graph import GraphRepository
-from app.llm import KnowledgeLLM
 from app.models import (
     ClaimView,
-    EntityCandidate,
     EntityResult,
     EntityView,
     EvidenceView,
@@ -13,12 +12,8 @@ from app.models import (
     SearchHit,
     SearchResult,
 )
-from app.utils import (
-    new_id,
-    normalize_predicate,
-    normalize_text,
-    stable_id,
-)
+from app.nams import NamsStore
+from app.utils import stable_id
 
 
 KNOWLEDGE_ID_PATTERN = re.compile(r"^kg_[A-Za-z0-9_-]{8,128}$")
@@ -33,14 +28,13 @@ def validate_knowledge_id(knowledge_id: str) -> str:
 
 
 class KnowledgeService:
-    def __init__(self, graph: GraphRepository, llm: KnowledgeLLM) -> None:
-        self._graph = graph
-        self._llm = llm
+    def __init__(self, store: NamsStore, knowledge_id: str) -> None:
+        self._store = store
+        self._knowledge_id = validate_knowledge_id(knowledge_id)
 
     async def create_knowledge_base(self) -> str:
-        knowledge_id = new_id("kg")
-        await self._graph.ensure_knowledge_base(knowledge_id)
-        return knowledge_id
+        await self._store.ensure_conversation(self._knowledge_id)
+        return self._knowledge_id
 
     async def push_memory(
         self,
@@ -49,152 +43,22 @@ class KnowledgeService:
         source: str,
         idempotency_key: str | None = None,
     ) -> PushMemoryResult:
-        validate_knowledge_id(knowledge_id)
+        self._validate_scope(knowledge_id)
+        # NAMS currently deduplicates extracted entities but does not expose
+        # durable message idempotency or arbitrary source metadata.
+        del source, idempotency_key
         text = text.strip()
-        source = source.strip() or "unspecified"
         if not text:
             raise ValueError("Memory text cannot be empty")
 
-        await self._graph.ensure_knowledge_base(knowledge_id)
-        memory_key = idempotency_key or stable_id("content", source, text)
-        memory_id = stable_id("mem", knowledge_id, memory_key)
-        text_embedding = await self._llm.embed(text)
-        await self._graph.create_evidence(
-            knowledge_id=knowledge_id,
-            evidence_id=memory_id,
-            text=text,
-            source=source,
-            embedding=text_embedding,
+        memory_id, conversation_id = await self._store.add_memory(
+            self._knowledge_id,
+            text,
         )
-
-        extraction = await self._llm.extract(text)
-        resolved: dict[str, EntityView] = {}
-        created_entities: dict[str, EntityView] = {}
-        reused_entities: dict[str, EntityView] = {}
-        unresolved_entities: list[str] = []
-
-        for mention in extraction.entities:
-            normalized = normalize_text(mention.name)
-            if not normalized:
-                unresolved_entities.append(mention.name)
-                continue
-            entity_description = (
-                f"{mention.name}\nKind: {mention.kind}\n{mention.summary}"
-            )
-            entity_embedding = await self._llm.embed(entity_description)
-            candidates = await self._graph.find_candidates(
-                knowledge_id,
-                mention.name,
-                normalized,
-                entity_embedding,
-            )
-
-            entity: EntityView | None = None
-            if candidates:
-                decision = await self._llm.resolve(mention, candidates, text)
-                if decision.action == "LINK":
-                    if not decision.candidate_id or decision.confidence < 0.85:
-                        unresolved_entities.append(mention.name)
-                        continue
-                    selected = next(
-                        candidate
-                        for candidate in candidates
-                        if candidate.id == decision.candidate_id
-                    )
-                    entity = self._candidate_to_view(selected)
-                    alias_pairs = self._alias_pairs(
-                        mention.name,
-                        mention.aliases,
-                    )
-                    await self._graph.add_aliases(
-                        knowledge_id,
-                        entity.id,
-                        alias_pairs,
-                    )
-                    known_aliases = {normalize_text(alias) for alias in entity.aliases}
-                    entity.aliases.extend(
-                        display
-                        for display, alias_norm in alias_pairs
-                        if alias_norm not in known_aliases
-                    )
-                    reused_entities[entity.id] = entity
-                elif decision.action == "UNRESOLVED":
-                    unresolved_entities.append(mention.name)
-                    continue
-
-            if entity is None:
-                entity_id = new_id("ent")
-                alias_pairs = self._alias_pairs(mention.name, mention.aliases)
-                entity = await self._graph.create_entity(
-                    knowledge_id=knowledge_id,
-                    entity_id=entity_id,
-                    name=mention.name,
-                    normalized=normalized,
-                    kind=mention.kind,
-                    summary=mention.summary,
-                    aliases=alias_pairs,
-                    embedding=entity_embedding,
-                )
-                created_entities[entity.id] = entity
-            resolved[mention.temp_id] = entity
-
-        created_claim_ids: list[str] = []
-        reused_claim_ids: list[str] = []
-        for claim in extraction.claims:
-            subject = resolved.get(claim.subject_temp_id)
-            object_entity = (
-                resolved.get(claim.object_temp_id)
-                if claim.object_temp_id is not None
-                else None
-            )
-            if subject is None:
-                continue
-            if claim.object_temp_id is not None and object_entity is None:
-                continue
-            if claim.evidence_quote not in text:
-                continue
-
-            predicate = normalize_predicate(claim.predicate)
-            object_key = (
-                object_entity.id
-                if object_entity is not None
-                else f"literal:{normalize_text(claim.object_literal or '')}"
-            )
-            claim_id = stable_id(
-                "clm",
-                knowledge_id,
-                subject.id,
-                predicate,
-                object_key,
-                claim.polarity,
-                claim.valid_from or "",
-                claim.valid_to or "",
-            )
-            created = await self._graph.upsert_claim(
-                knowledge_id=knowledge_id,
-                claim_id=claim_id,
-                subject_id=subject.id,
-                predicate=predicate,
-                object_entity_id=object_entity.id if object_entity else None,
-                object_literal=claim.object_literal,
-                polarity=claim.polarity,
-                confidence=claim.confidence,
-                valid_from=claim.valid_from,
-                valid_to=claim.valid_to,
-                evidence_id=memory_id,
-                supersedes_existing=claim.supersedes_existing,
-            )
-            target = created_claim_ids if created else reused_claim_ids
-            target.append(claim_id)
-
         return PushMemoryResult(
-            knowledge_id=knowledge_id,
+            knowledge_id=self._knowledge_id,
             memory_id=memory_id,
-            created_entities=list(created_entities.values()),
-            reused_entities=list(reused_entities.values()),
-            created_claim_ids=created_claim_ids,
-            reused_claim_ids=reused_claim_ids,
-            unresolved_entities=unresolved_entities,
+            conversation_id=conversation_id,
         )
 
     async def search(
@@ -203,57 +67,50 @@ class KnowledgeService:
         query: str,
         limit: int = 5,
     ) -> SearchResult:
-        validate_knowledge_id(knowledge_id)
+        self._validate_scope(knowledge_id)
         query = query.strip()
         if not query:
             raise ValueError("Search query cannot be empty")
         limit = max(1, min(limit, 20))
-        embedding = await self._llm.embed(query)
-        seeds = await self._graph.search_seed_entity_ids(
-            knowledge_id,
-            query,
-            embedding,
-            limit,
-        )
-        if not seeds:
-            return SearchResult(query=query, hits=[], insufficient_evidence=True)
 
-        seed_ids = [entity_id for entity_id, _ in seeds]
-        expanded_ids, _ = await self._graph.expand_entity_ids(
-            knowledge_id,
-            seed_ids,
-            depth=1,
-            limit=50,
+        entities, context = await asyncio.gather(
+            self._store.search_entities(query, limit),
+            self._store.get_context(self._knowledge_id, query),
         )
-        entity_rows = await self._graph.fetch_entities(knowledge_id, expanded_ids)
-        entity_map = {
-            row["id"]: self._row_to_entity(row)
-            for row in entity_rows
-        }
-        claim_rows = await self._graph.fetch_claims(knowledge_id, expanded_ids)
-        claims = [self._row_to_claim(row) for row in claim_rows]
+        relationship_batches = await asyncio.gather(
+            *(
+                self._store.get_relationships(str(entity.id))
+                for entity in entities
+            )
+        )
+        history_batches = await asyncio.gather(
+            *(
+                self._store.get_entity_history(str(entity.id))
+                for entity in entities
+            )
+        )
 
         hits: list[SearchHit] = []
-        for entity_id, score in seeds:
-            entity = entity_map.get(entity_id)
-            if entity is None:
-                continue
-            related_claims = [
-                claim
-                for claim in claims
-                if claim.subject.id == entity_id
-                or (
-                    isinstance(claim.object, EntityView)
-                    and claim.object.id == entity_id
-                )
-            ]
+        for rank, (entity, relationship_rows, history) in enumerate(
+            zip(entities, relationship_batches, history_batches, strict=True)
+        ):
+            evidence = self._history_to_evidence(history)
             hits.append(
-                SearchHit(entity=entity, score=score, claims=related_claims)
+                SearchHit(
+                    entity=self._entity_to_view(entity),
+                    score=1.0 / (rank + 1),
+                    claims=[
+                        self._relationship_to_claim(row, evidence)
+                        for row in relationship_rows
+                    ],
+                )
             )
+
         return SearchResult(
             query=query,
             hits=hits,
-            insufficient_evidence=not any(hit.claims for hit in hits),
+            context=context,
+            insufficient_evidence=not hits,
         )
 
     async def get_entity(
@@ -261,14 +118,21 @@ class KnowledgeService:
         knowledge_id: str,
         entity_id: str,
     ) -> EntityResult:
-        validate_knowledge_id(knowledge_id)
-        rows = await self._graph.fetch_entities(knowledge_id, [entity_id])
-        if not rows:
-            raise ValueError("Entity not found in this knowledge base")
-        claim_rows = await self._graph.fetch_claims(knowledge_id, [entity_id])
+        self._validate_scope(knowledge_id)
+        entity = await self._store.get_entity(entity_id)
+        if entity is None:
+            raise ValueError("Entity not found in this NAMS workspace")
+        relationships, history = await asyncio.gather(
+            self._store.get_relationships(entity_id),
+            self._store.get_entity_history(entity_id),
+        )
+        evidence = self._history_to_evidence(history)
         return EntityResult(
-            entity=self._row_to_entity(rows[0]),
-            claims=[self._row_to_claim(row) for row in claim_rows],
+            entity=self._entity_to_view(entity),
+            claims=[
+                self._relationship_to_claim(row, evidence)
+                for row in relationships
+            ],
         )
 
     async def get_neighborhood(
@@ -278,87 +142,111 @@ class KnowledgeService:
         depth: int = 1,
         limit: int = 50,
     ) -> NeighborhoodResult:
-        validate_knowledge_id(knowledge_id)
+        self._validate_scope(knowledge_id)
         depth = max(1, min(depth, 2))
         limit = max(1, min(limit, 100))
-        ids, truncated = await self._graph.expand_entity_ids(
-            knowledge_id,
-            [entity_id],
-            depth,
-            limit,
+        entity_rows, relationship_rows, truncated = (
+            await self._store.get_neighborhood(entity_id, depth, limit)
         )
-        if entity_id not in ids:
-            raise ValueError("Entity not found in this knowledge base")
-        rows = await self._graph.fetch_entities(knowledge_id, ids)
-        entities = [self._row_to_entity(row) for row in rows]
-        center = next(entity for entity in entities if entity.id == entity_id)
-        claims = [
-            self._row_to_claim(row)
-            for row in await self._graph.fetch_claims(
-                knowledge_id,
-                ids,
-                limit=limit * 2,
-            )
-        ]
+        if not entity_rows:
+            raise ValueError("Entity not found in this NAMS workspace")
+
+        entities = [self._entity_to_view(row) for row in entity_rows]
         return NeighborhoodResult(
-            center=center,
+            center=entities[0],
             entities=entities,
-            claims=claims,
+            claims=[
+                self._relationship_to_claim(row, [])
+                for row in relationship_rows
+            ],
             truncated=truncated,
         )
 
-    @staticmethod
-    def _alias_pairs(name: str, aliases: list[str]) -> list[tuple[str, str]]:
-        unique: dict[str, str] = {}
-        for display in [name, *aliases]:
-            normalized = normalize_text(display)
-            if normalized:
-                unique.setdefault(normalized, display)
-        return [(display, normalized) for normalized, display in unique.items()]
+    def _validate_scope(self, knowledge_id: str) -> None:
+        validate_knowledge_id(knowledge_id)
+        if knowledge_id != self._knowledge_id:
+            raise ValueError(
+                "This MCP service is bound to a different NAMS workspace. "
+                "Use /mcp/bootstrap to retrieve its knowledge ID."
+            )
 
     @staticmethod
-    def _candidate_to_view(candidate: EntityCandidate) -> EntityView:
+    def _entity_to_view(entity: Any) -> EntityView:
+        if isinstance(entity, dict):
+            data = entity
+        else:
+            data = {
+                "id": entity.id,
+                "name": entity.name,
+                "type": entity.type,
+                "description": entity.description,
+                "aliases": entity.aliases,
+            }
         return EntityView(
-            id=candidate.id,
-            name=candidate.name,
-            kind=candidate.kind,
-            summary=candidate.summary,
-            aliases=candidate.aliases,
-        )
-
-    @staticmethod
-    def _row_to_entity(row: dict) -> EntityView:
-        return EntityView(
-            id=row["id"],
-            name=row["name"],
-            kind=row["kind"],
-            summary=row.get("summary") or "",
-            aliases=[alias for alias in row.get("aliases", []) if alias],
+            id=str(data.get("id") or ""),
+            name=str(data.get("name") or "Unnamed entity"),
+            kind=str(data.get("type") or "CUSTOM"),
+            summary=str(data.get("description") or ""),
+            aliases=[str(alias) for alias in (data.get("aliases") or [])],
         )
 
     @classmethod
-    def _row_to_claim(cls, row: dict) -> ClaimView:
-        claim = row["claim"]
-        subject = cls._row_to_entity(row["subject"])
-        object_value: EntityView | str
-        if row.get("object"):
-            object_value = cls._row_to_entity(row["object"])
-        else:
-            object_value = claim.get("object_literal") or ""
-        evidence = [
-            EvidenceView(**item)
-            for item in row.get("evidence", [])
-            if item and item.get("id")
-        ]
+    def _relationship_to_claim(
+        cls,
+        row: dict[str, Any],
+        evidence: list[EvidenceView],
+    ) -> ClaimView:
+        source = cls._entity_to_view(dict(row.get("source") or {}))
+        target = cls._entity_to_view(dict(row.get("target") or {}))
+        relationship = dict(row.get("relationship") or {})
+        predicate = str(row.get("predicate") or "RELATED_TO")
+        confidence = relationship.get("confidence", 1.0)
         return ClaimView(
-            id=claim["id"],
-            subject=subject,
-            predicate=claim["predicate"],
-            object=object_value,
-            polarity=claim["polarity"],
-            status=claim["status"],
-            confidence=claim["confidence"],
-            valid_from=claim.get("valid_from"),
-            valid_to=claim.get("valid_to"),
+            id=stable_id("nams-rel", source.id, predicate, target.id),
+            subject=source,
+            predicate=predicate,
+            object=target,
+            polarity="positive",
+            status=str(relationship.get("status") or "active"),
+            confidence=float(confidence),
+            valid_from=relationship.get("valid_from"),
+            valid_to=relationship.get("valid_to"),
             evidence=evidence,
         )
+
+    @staticmethod
+    def _history_to_evidence(
+        history: list[dict[str, Any]],
+    ) -> list[EvidenceView]:
+        evidence: list[EvidenceView] = []
+        for index, mention in enumerate(history):
+            text = (
+                mention.get("content")
+                or mention.get("text")
+                or mention.get("quote")
+                or mention.get("messageContent")
+                or mention.get("message_content")
+            )
+            if not text:
+                continue
+            evidence_id = (
+                mention.get("messageId")
+                or mention.get("message_id")
+                or mention.get("id")
+                or stable_id("nams-evidence", str(index), str(text))
+            )
+            ingested_at = (
+                mention.get("createdAt")
+                or mention.get("created_at")
+                or mention.get("timestamp")
+                or ""
+            )
+            evidence.append(
+                EvidenceView(
+                    id=str(evidence_id),
+                    source="nams",
+                    text=str(text),
+                    ingested_at=str(ingested_at),
+                )
+            )
+        return evidence

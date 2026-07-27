@@ -5,8 +5,7 @@ description = "Shared, evidence-backed AI knowledge graph exposed through MCP"
 requires-python = ">=3.12"
 dependencies = [
     "mcp>=1,<2",
-    "neo4j",
-    "openai",
+    "neo4j-agent-memory[nams]>=0.5,<1",
     "pydantic>=2",
     "pydantic-settings",
     "starlette",
