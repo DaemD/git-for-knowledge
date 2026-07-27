@@ -121,10 +121,12 @@ mcp = FastMCP(
         "sources returned by recall, and do not invent missing facts. Before "
         "the first remember call in a project, read .mcp-identity from the "
         "project root. If it is missing, call get_identity, save its returned "
-        "value in .mcp-identity, and use that value as client_id for every "
-        "remember call. Never replace an existing .mcp-identity value. Clients "
-        "without project-file access may omit client_id; it will be recorded as "
-        "web-unattributed."
+        "value in .mcp-identity, then ensure .gitignore excludes it: append "
+        ".mcp-identity if .gitignore exists without that line, otherwise create "
+        ".gitignore containing only .mcp-identity. Use the saved value as "
+        "client_id for every remember call. Never replace an existing "
+        ".mcp-identity value. Clients without project-file access may omit "
+        "client_id; it will be recorded as web-unattributed."
     ),
     stateless_http=True,
     json_response=True,
@@ -157,9 +159,11 @@ async def get_identity() -> str:
 
     Before the first remember call in a project or session, check for
     .mcp-identity in the project root. If it is absent, call this tool, save the
-    returned string in .mcp-identity, and use that value going forward. Always
-    read .mcp-identity when present and pass its content as client_id on every
-    remember call. Never regenerate an identity when .mcp-identity exists.
+    returned string in .mcp-identity, then ensure .gitignore excludes it:
+    append .mcp-identity if .gitignore exists without that line, otherwise
+    create .gitignore containing only .mcp-identity. Always read .mcp-identity
+    when present and pass its content as client_id on every remember call.
+    Never regenerate an identity when .mcp-identity exists.
     """
     return _new_client_id()
 
@@ -177,9 +181,11 @@ async def remember(
     and asynchronously updates the shared graph. Before the first remember
     call in a project or session, check for .mcp-identity in the project root.
     If it is absent, call get_identity, save the returned string in
-    .mcp-identity, and use that value going forward. Always read
-    .mcp-identity when present and pass its content as client_id on every
-    remember call. Never regenerate an identity when .mcp-identity exists.
+    .mcp-identity, then ensure .gitignore excludes it: append .mcp-identity if
+    .gitignore exists without that line, otherwise create .gitignore containing
+    only .mcp-identity. Always read .mcp-identity when present and pass its
+    content as client_id on every remember call. Never regenerate an identity
+    when .mcp-identity exists.
     Clients without project-file access may omit client_id; those messages are
     recorded as web-unattributed.
     Also provide a stable, client-generated idempotency_key (normally a UUID)
@@ -206,9 +212,11 @@ async def recall(
     does not contain enough information rather than guessing. Before the first
     remember call in a project or session, check for .mcp-identity in the
     project root. If it is absent, call get_identity, save the returned string
-    in .mcp-identity, and use that value going forward. Always read
-    .mcp-identity when present and pass its content as client_id on every
-    remember call. Never regenerate an identity when .mcp-identity exists.
+    in .mcp-identity, then ensure .gitignore excludes it: append .mcp-identity
+    if .gitignore exists without that line, otherwise create .gitignore
+    containing only .mcp-identity. Always read .mcp-identity when present and
+    pass its content as client_id on every remember call. Never regenerate an
+    identity when .mcp-identity exists.
     Clients without project-file access may omit client_id; those messages are
     recorded as web-unattributed.
     """

@@ -89,10 +89,12 @@ Add a project rule:
 Before answering a question that may depend on shared knowledge, call recall.
 Before the first remember call in this project, read `.mcp-identity` from the
 project root. If it is missing, call get_identity, save the returned value to
-`.mcp-identity`, and use that value as client_id for every remember call. Never
-replace an existing `.mcp-identity` value. When the user asks to preserve durable
-information, call remember. Use returned context and sources, and do not invent
-missing facts.
+`.mcp-identity`, then ensure `.gitignore` excludes it: append `.mcp-identity`
+if `.gitignore` exists without that line, otherwise create `.gitignore`
+containing only `.mcp-identity`. Use the saved value as client_id for every
+remember call. Never replace an existing `.mcp-identity` value. When the user
+asks to preserve durable information, call remember. Use returned context and
+sources, and do not invent missing facts.
 ```
 
 Use the same URL in another compatible AI client to share the graph.
@@ -103,7 +105,9 @@ The first AI client working in a project handles the identity automatically:
 
 1. Check for `.mcp-identity` in the client project's root directory.
 2. If the file does not exist, call `get_identity` and save its returned string
-   as the complete file content.
+   as the complete file content. In the same bootstrap step, ensure `.gitignore`
+   excludes `.mcp-identity`: append the line if `.gitignore` exists without it,
+   or create `.gitignore` containing only that line if it does not exist.
 3. If the file exists, read its content instead. Never call `get_identity` to
    replace an existing value.
 4. Pass the file content as `client_id` on every `remember` call.
