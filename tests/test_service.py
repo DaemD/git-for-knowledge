@@ -17,19 +17,33 @@ class FakeNamsStore:
         self.messages[conversation_id] = []
         return conversation_id
 
-    async def add_memory(self, conversation_id: str, text: str) -> str:
+    async def add_memory(
+        self,
+        conversation_id: str,
+        text: str,
+        *,
+        metadata=None,
+    ) -> str:
+        from app.memory_meta import stamp_memory_text
+
+        content = stamp_memory_text(text, metadata) if metadata else text
         message_id = f"msg-{len(self.messages.setdefault(conversation_id, [])) + 1}"
         self.messages[conversation_id].append(
             SimpleNamespace(
                 id=message_id,
-                content=text,
+                content=content,
                 created_at=datetime.now(timezone.utc).isoformat(),
             )
         )
         return message_id
 
     async def get_context(self, conversation_id: str, query: str) -> str:
-        return "\n".join(m.content for m in self.messages.get(conversation_id, []))
+        from app.memory_meta import strip_memory_meta
+
+        return "\n".join(
+            strip_memory_meta(m.content)
+            for m in self.messages.get(conversation_id, [])
+        )
 
     async def list_messages(self, conversation_id: str, *, limit: int = 100):
         return self.messages.get(conversation_id, [])[:limit]
@@ -80,7 +94,72 @@ async def test_remember_and_recall_use_kb_id_payload(service: KnowledgeService) 
     assert result.found
     assert result.kb_id == "project-a"
     assert "Neo4j" in result.context
+    assert "skg_meta" not in result.context
     assert result.sources[0].provenance.client_id == "cursor-install-1"
+    stored = service._store.messages[created.knowledge_base.nams_conversation_id][0]
+    assert "skg_meta" in stored.content
+    assert 'kb_id="project-a"' in stored.content
+    assert 'owner_email="alice@example.com"' in stored.content
+    assert 'writer_sub="user-a"' in stored.content
+
+
+async def test_recall_drops_entities_from_other_conversations(
+    service: KnowledgeService,
+) -> None:
+    user = await service.ensure_user("user-a", {"email": "alice@example.com"})
+    await service.create_knowledge_base(user.id, "project-a")
+    await service.remember(
+        user.id,
+        "project-a",
+        "Neo4j powers the shared graph.",
+        idempotency_key="idem-1",
+    )
+
+    foreign = SimpleNamespace(
+        id="ent-foreign",
+        name="Secret",
+        type="THING",
+        description="",
+        aliases=[],
+    )
+    owned = SimpleNamespace(
+        id="ent-owned",
+        name="Neo4j",
+        type="DATABASE",
+        description="",
+        aliases=[],
+    )
+
+    async def search_entities(query: str, limit: int):
+        return [foreign, owned]
+
+    async def get_entity_history(entity_id: str):
+        if entity_id == "ent-owned":
+            return [
+                {
+                    "messageId": "msg-1",
+                    "content": (
+                        'Neo4j powers the shared graph.\n\n'
+                        '[skg_meta kb_id="project-a"]'
+                    ),
+                }
+            ]
+        return [
+            {
+                "messageId": "msg-other",
+                "content": 'Secret from another kb.\n\n[skg_meta kb_id="other"]',
+            }
+        ]
+
+    async def empty_relationships(entity_id: str):
+        return []
+
+    service._store.search_entities = search_entities  # type: ignore[method-assign]
+    service._store.get_entity_history = get_entity_history  # type: ignore[method-assign]
+    service._store.get_relationships = empty_relationships  # type: ignore[method-assign]
+
+    result = await service.recall(user.id, "project-a", "database")
+    assert [entity.name for entity in result.entities] == ["Neo4j"]
 
 
 async def test_kb_ids_are_isolated_per_user(service: KnowledgeService) -> None:

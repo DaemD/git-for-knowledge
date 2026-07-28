@@ -54,11 +54,23 @@ class NamsStore:
         )
         return str(conversation.id or conversation.session_id or session_id)
 
-    async def add_memory(self, conversation_id: str, text: str) -> str:
+    async def add_memory(
+        self,
+        conversation_id: str,
+        text: str,
+        *,
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        """Store memory text. NAMS drops message metadata, so we stamp it in content."""
+        from app.memory_meta import stamp_memory_text
+
+        content = text
+        if metadata:
+            content = stamp_memory_text(text, metadata)
         message = await self._client.short_term.add_message(
             conversation_id=conversation_id,
             role="user",
-            content=text,
+            content=content,
         )
         return str(message.id)
 

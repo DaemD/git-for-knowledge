@@ -16,7 +16,7 @@ class FakeNamsStore:
     async def create_conversation(self, name, *, metadata=None) -> str:
         return f"conv-{name}"
 
-    async def add_memory(self, conversation_id, text) -> str:
+    async def add_memory(self, conversation_id, text, *, metadata=None) -> str:
         return "msg-1"
 
     async def get_context(self, conversation_id, query) -> str:

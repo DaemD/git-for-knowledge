@@ -8,6 +8,11 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.db import ControlStore, GraphRecord, MemoryWrite, UserRecord, hash_content
+from app.memory_meta import (
+    build_memory_metadata,
+    metadata_matches_kb,
+    strip_memory_meta,
+)
 from app.models import (
     ClaimView,
     CreateKnowledgeBaseResult,
@@ -104,6 +109,9 @@ class KnowledgeService:
             metadata={
                 "purpose": "shared-knowledge-graph",
                 "kb_id": kb_id,
+                "kb_name": label,
+                "owner_sub": user_id,
+                "owner_email": user.email or "",
                 "user_id": user_id,
                 "username": self.username_for(user),
             },
@@ -254,9 +262,21 @@ class KnowledgeService:
             )
 
         try:
+            owner = await self._require_user(graph.user_id)
+            memory_meta = build_memory_metadata(
+                kb_id=graph.kb_id,
+                kb_name=graph.name,
+                owner_sub=graph.user_id,
+                owner_email=owner.email,
+                writer_sub=user.id,
+                writer_email=user.email,
+                graph_id=graph.id,
+                nams_conversation_id=graph.nams_conversation_id,
+            )
             memory_id = await self._store.add_memory(
                 graph.nams_conversation_id,
                 text,
+                metadata=memory_meta,
             )
         except Exception:
             await self._control.mark_failed(idempotency_key)
@@ -296,18 +316,13 @@ class KnowledgeService:
             self._store.get_context(conversation_id, question),
             self._store.list_messages(conversation_id, limit=200),
         )
+        context = strip_memory_meta(context) if context else context
         conversation_message_ids = {
             str(getattr(message, "id", "") or "")
             for message in messages
             if getattr(message, "id", None)
         }
 
-        relationship_batches = await asyncio.gather(
-            *(
-                self._store.get_relationships(str(entity.id))
-                for entity in nams_entities
-            )
-        )
         history_batches = await asyncio.gather(
             *(
                 self._store.get_entity_history(str(entity.id))
@@ -315,9 +330,28 @@ class KnowledgeService:
             )
         )
 
+        scoped_entities: list[Any] = []
+        scoped_histories: list[list[dict[str, Any]]] = []
+        for entity, history in zip(nams_entities, history_batches, strict=True):
+            if self._entity_belongs_to_kb(
+                history,
+                conversation_message_ids,
+                kb_id=graph.kb_id,
+                graph_id=graph.id,
+            ):
+                scoped_entities.append(entity)
+                scoped_histories.append(history)
+
+        relationship_batches = await asyncio.gather(
+            *(
+                self._store.get_relationships(str(entity.id))
+                for entity in scoped_entities
+            )
+        ) if scoped_entities else []
+
         message_ids = {
             str(message_id)
-            for history in history_batches
+            for history in scoped_histories
             for mention in history
             for message_id in [
                 mention.get("messageId")
@@ -332,9 +366,9 @@ class KnowledgeService:
             message_ids,
         )
 
-        entities = [self._entity_to_view(entity) for entity in nams_entities]
+        entities = [self._entity_to_view(entity) for entity in scoped_entities]
         sources_by_id: dict[str, EvidenceView] = {}
-        for history in history_batches:
+        for history in scoped_histories:
             for source in self._history_to_evidence(history, writes_by_message_id):
                 if (
                     conversation_message_ids
@@ -342,6 +376,7 @@ class KnowledgeService:
                     and source.source == "nams"
                 ):
                     continue
+                source.text = strip_memory_meta(source.text)
                 sources_by_id.setdefault(source.id, source)
 
         if not sources_by_id:
@@ -359,7 +394,7 @@ class KnowledgeService:
                 sources_by_id[evidence_id] = EvidenceView(
                     id=evidence_id,
                     source="nams-conversation",
-                    text=text,
+                    text=strip_memory_meta(text),
                     ingested_at=created,
                     provenance=self._write_to_provenance(
                         writes_by_message_id.get(evidence_id)
@@ -389,6 +424,38 @@ class KnowledgeService:
         if user is None:
             raise PermissionError("Authenticated user not found")
         return user
+
+    @staticmethod
+    def _entity_belongs_to_kb(
+        history: list[dict[str, Any]],
+        conversation_message_ids: set[str],
+        *,
+        kb_id: str,
+        graph_id: str,
+    ) -> bool:
+        """Keep entities only if provenance ties them to this KB conversation."""
+        if not conversation_message_ids and not history:
+            return False
+        for mention in history:
+            message_id = str(
+                mention.get("messageId")
+                or mention.get("message_id")
+                or mention.get("id")
+                or ""
+            )
+            if message_id and message_id in conversation_message_ids:
+                return True
+            text = str(
+                mention.get("content")
+                or mention.get("text")
+                or mention.get("quote")
+                or mention.get("messageContent")
+                or mention.get("message_content")
+                or ""
+            )
+            if text and metadata_matches_kb(text, kb_id, graph_id):
+                return True
+        return False
 
     async def _require_owned_kb(self, user_id: str, kb_id: str) -> GraphRecord:
         kb_id = validate_kb_id(kb_id)
