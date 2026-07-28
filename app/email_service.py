@@ -36,17 +36,15 @@ async def send_kb_invite_email(
         return EmailSendResult(sent=False, error="EMAIL_FROM not set")
 
     inviter = inviter_name or inviter_email or "A collaborator"
-    docs = settings.invite_docs_url or str(settings.public_base_url)
     subject = f"You're invited to knowledge base '{kb_name}'"
     text = (
         f"{inviter} invited you to the shared knowledge base "
         f"'{kb_name}' (kb_id: {kb_id}) with {role} access.\n\n"
         f"1. Sign in to Shared Knowledge MCP with this exact Google email: "
         f"{to_email}\n"
-        f"2. Use the same MCP URL/Client ID as your teammate.\n"
+        f"2. Use the same MCP URL and Client ID as your teammate.\n"
         f"3. Call list_knowledge_bases, then recall/remember with "
-        f'kb_id="{kb_id}".\n\n'
-        f"Setup help: {docs}\n"
+        f'kb_id="{kb_id}".\n'
     )
     html = f"""
     <p><strong>{inviter}</strong> invited you to
@@ -59,7 +57,6 @@ async def send_kb_invite_email(
           <code>recall</code>/<code>remember</code> with
           <code>kb_id="{kb_id}"</code></li>
     </ol>
-    <p><a href="{docs}">Setup help</a></p>
     """
 
     try:
@@ -67,7 +64,9 @@ async def send_kb_invite_email(
             response = await client.post(
                 "https://api.resend.com/emails",
                 headers={
-                    "Authorization": f"Bearer {settings.resend_api_key.get_secret_value()}",
+                    "Authorization": (
+                        f"Bearer {settings.resend_api_key.get_secret_value()}"
+                    ),
                     "Content-Type": "application/json",
                 },
                 json={
@@ -81,7 +80,10 @@ async def send_kb_invite_email(
         if response.status_code >= 400:
             detail = response.text[:300]
             logger.warning("Invite email failed: %s %s", response.status_code, detail)
-            return EmailSendResult(sent=False, error=f"provider {response.status_code}")
+            return EmailSendResult(
+                sent=False,
+                error=f"provider {response.status_code}: {detail}",
+            )
         return EmailSendResult(sent=True)
     except httpx.HTTPError as exc:
         logger.warning("Invite email transport error: %s", exc)
