@@ -12,6 +12,7 @@ from starlette.routing import Mount, Route
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.config import get_settings
+from app.memory_writes import MemoryWriteStore
 from app.models import RecallResult, RememberResult
 from app.nams import NamsStore
 from app.service import KnowledgeService, validate_knowledge_id
@@ -25,6 +26,7 @@ knowledge_scope: ContextVar[str | None] = ContextVar(
 
 class Runtime:
     store: NamsStore | None = None
+    write_store: MemoryWriteStore | None = None
     service: KnowledgeService | None = None
 
 
@@ -280,13 +282,20 @@ async def lifespan(_: Starlette):
     settings = get_settings()
     store = NamsStore(settings)
     await store.connect()
+    write_store = MemoryWriteStore()
     runtime.store = store
-    runtime.service = KnowledgeService(store, settings.effective_knowledge_id)
+    runtime.write_store = write_store
+    runtime.service = KnowledgeService(
+        store,
+        write_store,
+        settings.effective_knowledge_id,
+    )
     try:
         async with mcp.session_manager.run():
             yield
     finally:
         runtime.service = None
+        runtime.write_store = None
         runtime.store = None
         await store.close()
 

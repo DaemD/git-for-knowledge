@@ -10,11 +10,10 @@ class EntityView(BaseModel):
 
 
 class ProvenanceView(BaseModel):
-    """Client provenance retained with a NAMS source message."""
+    """Client provenance retained by this MCP service for a NAMS source."""
 
     client_id: str
-    timestamp: str
-    idempotency_key: str
+    accepted_at: str
 
 
 class EvidenceView(BaseModel):
@@ -39,7 +38,7 @@ class ClaimView(BaseModel):
 
 
 class RememberResult(BaseModel):
-    memory_id: str
+    memory_id: str | None
     status: str = "processing"
 
 

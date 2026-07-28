@@ -7,3 +7,6 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+data/memory_writes.db
+data/memory_writes.db-shm
+data/memory_writes.db-wal

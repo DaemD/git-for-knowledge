@@ -28,8 +28,8 @@ knows the public MCP URL can use the tools exposed by this service.
 
 - `get_identity`: generates an opaque, human-readable client identifier for a
   client to save locally.
-- `remember`: queues durable natural language and its client provenance for
-  NAMS-managed graph ingestion.
+- `remember`: queues durable natural language for NAMS-managed graph ingestion
+  and records its provenance locally.
 - `recall`: retrieves relevant context, entities, relationships, and sources for
   the connected AI to use in its answer.
 
@@ -127,7 +127,7 @@ idempotency, but not per-client provenance.
 | --- | --- | --- |
 | `client_id` | MCP client | Optional. Opaque value read from `.mcp-identity`; omitted values become `web-unattributed`. |
 | `idempotency_key` | MCP client | Stable client-generated UUID (recommended) reused when retrying the same push. |
-| `timestamp` | This server | UTC time at which the server accepts a new push. Do not send this field. |
+| `accepted_at` | This server | UTC time at which the server accepts a new push. Do not send this field. |
 
 For example, an MCP client should call `remember` with:
 
@@ -139,11 +139,19 @@ For example, an MCP client should call `remember` with:
 }
 ```
 
-The service stores `client_id`, `timestamp`, and `idempotency_key` in NAMS
-message metadata. Before adding a message, it checks the latest 100 messages
-in the shared conversation for the same `idempotency_key`. A matching retry is
-not re-ingested; `remember` returns the original `memory_id` with
-`status="already_exists"`.
+Hosted NAMS accepts `metadata` and `user_identifier` without rejecting the
+write, but a live round-trip test against the hosted endpoint confirmed that it
+does not retain either value on message retrieval. The service therefore keeps
+provenance and idempotency in its own SQLite ledger at
+`data/memory_writes.db`; it does not send unsupported metadata fields to NAMS.
+
+Before calling NAMS, `remember` creates a pending row keyed by
+`idempotency_key`. A retry of a completed row returns the original `memory_id`
+with `status="already_exists"` without another NAMS call. A retry while the
+row is pending returns `status="processing"` and does not submit a duplicate.
+If NAMS fails, the row is marked failed and a later retry may submit it again.
+The ledger records the server-generated UTC acceptance time, a SHA-256 content
+hash, the client identifier, and the NAMS message ID once available.
 
 `recall` preserves NAMS as `sources[].source` and returns provenance for a
 matching source message as `sources[].provenance`:
@@ -156,8 +164,7 @@ matching source message as `sources[].provenance`:
   "ingested_at": "2026-07-28T12:00:00Z",
   "provenance": {
     "client_id": "swift-otter-482193",
-    "timestamp": "2026-07-28T12:00:00Z",
-    "idempotency_key": "5be1f3e7-c742-46a3-8e1a-e299a0cb6863"
+    "accepted_at": "2026-07-28T12:00:00Z"
   }
 }
 ```
@@ -165,6 +172,9 @@ matching source message as `sources[].provenance`:
 `client_id` is an installation-level label, not a verified human identity or
 an authorization mechanism. Authentication and user identity are separate,
 deferred work.
+
+Older NAMS messages that predate the ledger, or messages written outside this
+service, have `provenance: null` rather than causing `recall` to fail.
 
 ## Railway deployment
 
@@ -180,6 +190,12 @@ deferred work.
 
 Railway supplies `PORT`; the container listens on that value. `/health` is used
 for deployment health checks.
+
+The default Railway filesystem is ephemeral. To retain provenance and
+idempotency data across deploys, configure a Railway Volume mounted at
+`/app/data`; this is where the service's relative
+`data/memory_writes.db` path resolves in the container. Without that volume,
+the SQLite database is reset on redeploy.
 
 ## NAMS ingestion
 
