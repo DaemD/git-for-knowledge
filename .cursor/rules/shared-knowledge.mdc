@@ -1,0 +1,29 @@
+---
+description: Use Shared Knowledge MCP for durable project memory
+alwaysApply: true
+---
+
+# Shared knowledge
+
+This project uses the Shared Knowledge MCP server.
+
+## Default knowledge base
+
+- Prefer the `kb_id` stored in `.cursor/kb-id` when present.
+- If missing, call `list_knowledge_bases` before guessing.
+
+## When to recall
+
+Before answering architecture, decisions, stack, or “what did we decide” questions, call `recall` with the project `kb_id`.
+
+## When to remember
+
+When the user states a durable decision, fact, or constraint worth keeping across chats, call `remember` with:
+- that `kb_id`
+- a clear text summary
+- a fresh UUID `idempotency_key`
+
+## Do not
+
+- Do not invent memories that were not recalled.
+- Do not ask the user to re-explain known durable project facts before trying `recall`.

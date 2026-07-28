@@ -8,7 +8,8 @@ derived from the verified OAuth identity, never from an untrusted payload field.
 
 ## Tools
 
-`get_identity`, `list_knowledge_bases`, `create_knowledge_base`, `remember`,
+`list_knowledge_bases`, `create_knowledge_base`, `remember`,
+`recall`, plus invite/member tools.
 `recall`
 
 ## Isolation

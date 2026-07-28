@@ -1,5 +1,4 @@
 import contextlib
-import secrets
 from typing import Any
 
 import uvicorn
@@ -35,88 +34,6 @@ class Runtime:
 
 runtime = Runtime()
 
-_IDENTITY_ADJECTIVES = (
-    "agile",
-    "amber",
-    "brisk",
-    "bright",
-    "calm",
-    "clever",
-    "cosmic",
-    "curious",
-    "daring",
-    "dapper",
-    "eager",
-    "fuzzy",
-    "gentle",
-    "golden",
-    "happy",
-    "jolly",
-    "keen",
-    "lively",
-    "lucky",
-    "mighty",
-    "nimble",
-    "plucky",
-    "quiet",
-    "rapid",
-    "roaming",
-    "rosy",
-    "shiny",
-    "silver",
-    "sleepy",
-    "swift",
-    "tidy",
-    "vivid",
-    "warm",
-    "witty",
-    "zesty",
-)
-_IDENTITY_NOUNS = (
-    "badger",
-    "beaver",
-    "bison",
-    "capybara",
-    "chameleon",
-    "corgi",
-    "dolphin",
-    "dragon",
-    "falcon",
-    "ferret",
-    "gecko",
-    "hedgehog",
-    "heron",
-    "jaguar",
-    "koala",
-    "lemur",
-    "llama",
-    "lynx",
-    "manatee",
-    "marmot",
-    "narwhal",
-    "otter",
-    "panda",
-    "puffin",
-    "raven",
-    "seahorse",
-    "sloth",
-    "sparrow",
-    "tiger",
-    "tortoise",
-    "toucan",
-    "walrus",
-    "wombat",
-    "yak",
-)
-
-
-def _new_client_id() -> str:
-    """Generate a human-readable opaque installation identifier."""
-    adjective = secrets.choice(_IDENTITY_ADJECTIVES)
-    noun = secrets.choice(_IDENTITY_NOUNS)
-    number = secrets.randbelow(1_000_000)
-    return f"{adjective}-{noun}-{number:06d}"
-
 
 def _build_mcp(settings: Settings) -> FastMCP:
     issuer = settings.oauth_issuer_url or settings.public_base_url
@@ -134,10 +51,7 @@ def _build_mcp(settings: Settings) -> FastMCP:
             "manage KBs. Owners can invite collaborators with "
             "invite_to_knowledge_base(email, role). Invitees sign in with the "
             "same Google email, then use the shared kb_id for remember/recall. "
-            "Before the first remember call in a project, read "
-            ".mcp-identity; if missing, call get_identity and save it. Pass "
-            "that value as client_id on remember. Entity search remains "
-            "workspace-wide soft isolation."
+            "Entity search remains workspace-wide soft isolation."
         ),
         stateless_http=True,
         json_response=True,
@@ -166,18 +80,6 @@ def _service() -> KnowledgeService:
 async def _authenticated_user():
     subject, claims = current_user_subject()
     return await _service().ensure_user(subject, claims)
-
-
-@mcp.tool()
-async def get_identity() -> str:
-    """Generate a new opaque client identifier for local install provenance.
-
-    Before the first remember call in a project, check for .mcp-identity. If
-    absent, call this tool, save the returned string, and gitignore it. Always
-    pass the saved value as client_id on remember. Never regenerate when
-    .mcp-identity already exists.
-    """
-    return _new_client_id()
 
 
 @mcp.tool()

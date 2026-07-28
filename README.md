@@ -19,10 +19,10 @@ Entity search remains workspace-wide soft isolation inside Neo4j.
 
 ## MCP tools
 
-- `get_identity` — Cursor-install provenance id
 - `list_knowledge_bases` / `create_knowledge_base(kb_id, name?)`
 - `remember(kb_id, text, idempotency_key, client_id?)`
 - `recall(kb_id, question, limit?)`
+- `invite_to_knowledge_base` / `list_knowledge_base_members` / `revoke_knowledge_base_access`
 
 ## Local setup
 
