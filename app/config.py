@@ -1,7 +1,8 @@
-import hashlib
+from __future__ import annotations
+
 from functools import lru_cache
 
-from pydantic import Field, SecretStr
+from pydantic import AnyHttpUrl, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,22 +13,64 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Shared NAMS workspace for the whole MVP deployment.
     memory_api_key: SecretStr
     memory_endpoint: str = "https://memory.neo4jlabs.com/v1"
-    memory_workspace_id: str | None = None
-    knowledge_id: str | None = None
+    memory_workspace_id: str = Field(
+        ...,
+        description="Single shared NAMS workspace id used by all users",
+    )
+
+    # PostgreSQL control plane (users, graphs, sessions, memory_writes).
+    database_url: str = Field(
+        default="postgresql://postgres:postgres@localhost:5432/knowledge",
+        description="asyncpg-compatible PostgreSQL URL",
+    )
+
+    # Auth0 with Google as the upstream identity provider.
+    oauth_issuer_url: AnyHttpUrl | None = None
+    oauth_audience: str = ""
+    oauth_jwks_url: str | None = None
+    oauth_required_scopes: str = ""
+    public_base_url: AnyHttpUrl = Field(
+        default=AnyHttpUrl("http://127.0.0.1:8000"),
+    )
 
     host: str = "0.0.0.0"
     port: int = Field(default=8000, ge=1, le=65535)
     mcp_base_path: str = "/mcp"
 
+    # Dev-only: accept Authorization Bearer tokens shaped as sub:<user-id>.
+    auth_disabled: bool = False
+
     @property
-    def effective_knowledge_id(self) -> str:
-        if self.knowledge_id:
-            return self.knowledge_id
-        key = self.memory_api_key.get_secret_value().encode("utf-8")
-        digest = hashlib.sha256(key).hexdigest()[:32]
-        return f"kg_{digest}"
+    def required_scopes(self) -> list[str]:
+        return [scope for scope in self.oauth_required_scopes.split() if scope]
+
+    @property
+    def jwks_url(self) -> str:
+        if self.oauth_jwks_url:
+            return self.oauth_jwks_url
+        if self.oauth_issuer_url is None:
+            raise ValueError("oauth_issuer_url is required when auth is enabled")
+        issuer = str(self.oauth_issuer_url).rstrip("/")
+        return f"{issuer}/.well-known/jwks.json"
+
+    @model_validator(mode="after")
+    def validate_auth_settings(self) -> Settings:
+        if not self.memory_workspace_id.strip():
+            raise ValueError("MEMORY_WORKSPACE_ID is required")
+        if self.auth_disabled:
+            return self
+        if self.oauth_issuer_url is None:
+            raise ValueError(
+                "OAUTH_ISSUER_URL is required unless AUTH_DISABLED=true"
+            )
+        if not self.oauth_audience:
+            raise ValueError(
+                "OAUTH_AUDIENCE is required unless AUTH_DISABLED=true"
+            )
+        return self
 
 
 @lru_cache

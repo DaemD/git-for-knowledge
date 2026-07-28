@@ -1,70 +1,139 @@
+"""Product service: auth user + kb_id logical knowledge bases."""
+
+from __future__ import annotations
+
 import asyncio
-import hashlib
 import re
 from datetime import datetime, timezone
 from typing import Any
 
+from app.db import ControlStore, GraphRecord, MemoryWrite, UserRecord, hash_content
 from app.models import (
     ClaimView,
+    CreateKnowledgeBaseResult,
     EntityView,
     EvidenceView,
+    KB_ID_PATTERN,
+    KnowledgeBaseListResult,
+    KnowledgeBaseView,
     ProvenanceView,
     RecallResult,
     RememberResult,
 )
-from app.memory_writes import MemoryWrite, MemoryWriteStore
 from app.nams import NamsStore
 from app.utils import stable_id
 
 
-KNOWLEDGE_ID_PATTERN = re.compile(r"^kg_[A-Za-z0-9_-]{8,128}$")
 MAX_PROVENANCE_VALUE_LENGTH = 256
 WEB_UNATTRIBUTED_CLIENT_ID = "web-unattributed"
-
-
-def validate_knowledge_id(knowledge_id: str) -> str:
-    if not KNOWLEDGE_ID_PATTERN.fullmatch(knowledge_id):
-        raise ValueError(
-            "Invalid knowledge ID. Expected kg_ followed by 8-128 safe characters."
-        )
-    return knowledge_id
+USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 
 class KnowledgeService:
-    def __init__(
-        self,
-        store: NamsStore,
-        write_store: MemoryWriteStore,
-        knowledge_id: str,
-    ) -> None:
+    def __init__(self, store: NamsStore, control: ControlStore) -> None:
         self._store = store
-        self._write_store = write_store
-        self._knowledge_id = validate_knowledge_id(knowledge_id)
+        self._control = control
+
+    async def ensure_user(
+        self,
+        subject: str,
+        claims: dict[str, Any] | None = None,
+    ) -> UserRecord:
+        claims = claims or {}
+        email = _as_optional_str(claims.get("email"))
+        display_name = _as_optional_str(
+            claims.get("name") or claims.get("nickname")
+        )
+        return await self._control.upsert_user(
+            subject,
+            email=email,
+            display_name=display_name,
+        )
+
+    def username_for(self, user: UserRecord) -> str:
+        """Stable public username derived from profile, never client-supplied."""
+        for candidate in (
+            user.display_name,
+            (user.email or "").split("@", 1)[0] if user.email else None,
+            user.id,
+        ):
+            if not candidate:
+                continue
+            cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", candidate).strip("-._")
+            if cleaned and USERNAME_PATTERN.fullmatch(cleaned):
+                return cleaned[:64]
+        return re.sub(r"[^A-Za-z0-9_-]+", "-", user.id)[:64] or "user"
+
+    async def list_knowledge_bases(self, user_id: str) -> KnowledgeBaseListResult:
+        user = await self._require_user(user_id)
+        graphs = await self._control.list_graphs(user_id)
+        return KnowledgeBaseListResult(
+            username=self.username_for(user),
+            knowledge_bases=[_kb_view(graph) for graph in graphs],
+        )
+
+    async def create_knowledge_base(
+        self,
+        user_id: str,
+        kb_id: str,
+        name: str | None = None,
+    ) -> CreateKnowledgeBaseResult:
+        user = await self._require_user(user_id)
+        kb_id = validate_kb_id(kb_id)
+        label = (name or kb_id).strip()
+        if not label:
+            raise ValueError("Knowledge base name cannot be empty")
+        if len(label) > 120:
+            raise ValueError("Knowledge base name must be 120 characters or fewer")
+
+        conversation_id = await self._store.create_conversation(
+            label,
+            metadata={
+                "purpose": "shared-knowledge-graph",
+                "kb_id": kb_id,
+                "user_id": user_id,
+                "username": self.username_for(user),
+            },
+        )
+        graph = await self._control.create_graph(
+            user_id,
+            kb_id,
+            label,
+            conversation_id,
+        )
+        return CreateKnowledgeBaseResult(
+            username=self.username_for(user),
+            knowledge_base=_kb_view(graph),
+        )
 
     async def remember(
         self,
-        knowledge_id: str,
+        user_id: str,
+        kb_id: str,
         text: str,
-        client_id: str | None,
+        *,
         idempotency_key: str,
+        client_id: str | None = None,
     ) -> RememberResult:
-        self._validate_scope(knowledge_id)
         text = text.strip()
         if not text:
             raise ValueError("Memory text cannot be empty")
 
+        user = await self._require_user(user_id)
+        username = self.username_for(user)
+        graph = await self._require_owned_kb(user_id, kb_id)
         client_id = self._client_id_or_default(client_id)
         idempotency_key = self._provenance_value(
             "idempotency_key",
             idempotency_key,
         )
-
         accepted_at = self._utc_now()
-        write_result = self._write_store.begin_write(
+        write_result = await self._control.begin_write(
             idempotency_key=idempotency_key,
-            workspace_id=self._knowledge_id,
+            user_id=user_id,
+            graph_id=graph.id,
             client_id=client_id,
-            content_hash=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            content_hash=hash_content(text),
             accepted_at=accepted_at,
         )
         if not write_result.should_submit:
@@ -72,41 +141,65 @@ class KnowledgeService:
                 return RememberResult(
                     memory_id=write_result.write.nams_message_id,
                     status="already_exists",
+                    username=username,
+                    kb_id=graph.kb_id,
                 )
             return RememberResult(
                 memory_id=write_result.write.nams_message_id,
                 status="processing",
+                username=username,
+                kb_id=graph.kb_id,
             )
 
         try:
-            memory_id, _ = await self._store.add_memory(self._knowledge_id, text)
+            memory_id = await self._store.add_memory(
+                graph.nams_conversation_id,
+                text,
+            )
         except Exception:
-            self._write_store.mark_failed(idempotency_key)
+            await self._control.mark_failed(idempotency_key)
             raise
 
-        self._write_store.mark_completed(
+        await self._control.mark_completed(
             idempotency_key,
             memory_id,
             self._utc_now(),
         )
-        return RememberResult(memory_id=memory_id)
+        return RememberResult(
+            memory_id=memory_id,
+            status="processing",
+            username=username,
+            kb_id=graph.kb_id,
+        )
 
     async def recall(
         self,
-        knowledge_id: str,
+        user_id: str,
+        kb_id: str,
         question: str,
         limit: int = 5,
     ) -> RecallResult:
-        self._validate_scope(knowledge_id)
         question = question.strip()
         if not question:
             raise ValueError("Recall question cannot be empty")
         limit = max(1, min(limit, 20))
 
-        nams_entities, context = await asyncio.gather(
+        user = await self._require_user(user_id)
+        username = self.username_for(user)
+        graph = await self._require_owned_kb(user_id, kb_id)
+        conversation_id = graph.nams_conversation_id
+
+        nams_entities, context, messages = await asyncio.gather(
             self._store.search_entities(question, limit),
-            self._store.get_context(self._knowledge_id, question),
+            self._store.get_context(conversation_id, question),
+            self._store.list_messages(conversation_id, limit=200),
         )
+        conversation_message_ids = {
+            str(getattr(message, "id", "") or "")
+            for message in messages
+            if getattr(message, "id", None)
+        }
+
         relationship_batches = await asyncio.gather(
             *(
                 self._store.get_relationships(str(entity.id))
@@ -131,8 +224,9 @@ class KnowledgeService:
             ]
             if message_id
         }
-        writes_by_message_id = self._write_store.get_by_message_ids(
-            self._knowledge_id,
+        message_ids |= conversation_message_ids
+        writes_by_message_id = await self._control.get_by_message_ids(
+            graph.id,
             message_ids,
         )
 
@@ -140,7 +234,35 @@ class KnowledgeService:
         sources_by_id: dict[str, EvidenceView] = {}
         for history in history_batches:
             for source in self._history_to_evidence(history, writes_by_message_id):
+                if (
+                    conversation_message_ids
+                    and source.id not in conversation_message_ids
+                    and source.source == "nams"
+                ):
+                    continue
                 sources_by_id.setdefault(source.id, source)
+
+        if not sources_by_id:
+            for message in messages:
+                text = str(getattr(message, "content", "") or "")
+                if not text:
+                    continue
+                message_id = str(getattr(message, "id", "") or "")
+                created = str(
+                    getattr(message, "created_at", None)
+                    or getattr(message, "timestamp", None)
+                    or ""
+                )
+                evidence_id = message_id or stable_id("msg", text)
+                sources_by_id[evidence_id] = EvidenceView(
+                    id=evidence_id,
+                    source="nams-conversation",
+                    text=text,
+                    ingested_at=created,
+                    provenance=self._write_to_provenance(
+                        writes_by_message_id.get(evidence_id)
+                    ),
+                )
 
         relationships_by_id: dict[str, ClaimView] = {}
         sources = list(sources_by_id.values())
@@ -155,15 +277,26 @@ class KnowledgeService:
             entities=entities,
             relationships=list(relationships_by_id.values()),
             sources=sources,
-            found=bool(entities or context),
+            found=bool(entities or context or sources),
+            username=username,
+            kb_id=graph.kb_id,
         )
 
-    def _validate_scope(self, knowledge_id: str) -> None:
-        validate_knowledge_id(knowledge_id)
-        if knowledge_id != self._knowledge_id:
-            raise ValueError(
-                "This MCP service is bound to a different NAMS workspace."
+    async def _require_user(self, user_id: str) -> UserRecord:
+        user = await self._control.get_user(user_id)
+        if user is None:
+            raise PermissionError("Authenticated user not found")
+        return user
+
+    async def _require_owned_kb(self, user_id: str, kb_id: str) -> GraphRecord:
+        kb_id = validate_kb_id(kb_id)
+        graph = await self._control.get_graph_by_kb(user_id, kb_id)
+        if graph is None:
+            raise PermissionError(
+                "Knowledge base not found for this user. "
+                "Call create_knowledge_base(kb_id) first."
             )
+        return graph
 
     @staticmethod
     def _provenance_value(name: str, value: str) -> str:
@@ -282,3 +415,29 @@ class KnowledgeService:
             client_id=write.client_id or WEB_UNATTRIBUTED_CLIENT_ID,
             accepted_at=write.accepted_at,
         )
+
+
+def validate_kb_id(kb_id: str) -> str:
+    kb_id = kb_id.strip()
+    if not KB_ID_PATTERN.fullmatch(kb_id):
+        raise ValueError(
+            "Invalid kb_id. Use 1-64 chars: letters, numbers, _ or - "
+            "(must start with a letter or number)."
+        )
+    return kb_id
+
+
+def _kb_view(graph: GraphRecord) -> KnowledgeBaseView:
+    return KnowledgeBaseView(
+        kb_id=graph.kb_id,
+        name=graph.name,
+        nams_conversation_id=graph.nams_conversation_id,
+        created_at=graph.created_at,
+    )
+
+
+def _as_optional_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None

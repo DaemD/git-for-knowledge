@@ -1,4 +1,11 @@
-import asyncio
+"""Workspace-aware Neo4j Agent Memory Service (NAMS) adapter.
+
+MVP: one shared NAMS workspace for the whole deployment. Product graphs map to
+NAMS conversations inside that workspace.
+"""
+
+from __future__ import annotations
+
 from typing import Any
 from uuid import uuid4
 
@@ -8,17 +15,20 @@ from app.config import Settings
 
 
 class NamsStore:
-    """Thin adapter around the hosted Neo4j Agent Memory Service."""
+    """Single shared-workspace MemoryClient."""
 
     def __init__(self, settings: Settings) -> None:
+        self._workspace_id = settings.memory_workspace_id
         nams = NamsConfig(
             endpoint=settings.memory_endpoint,
             api_key=settings.memory_api_key,
-            workspace_id=settings.memory_workspace_id,
+            workspace_id=self._workspace_id,
         )
         self._client = MemoryClient(MemorySettings(backend="nams", nams=nams))
-        self._conversation_ids: dict[str, str] = {}
-        self._conversation_lock = asyncio.Lock()
+
+    @property
+    def workspace_id(self) -> str:
+        return self._workspace_id
 
     async def connect(self) -> None:
         await self._client.connect()
@@ -26,50 +36,54 @@ class NamsStore:
     async def close(self) -> None:
         await self._client.close()
 
-    async def ensure_conversation(self, knowledge_id: str) -> str:
-        cached = self._conversation_ids.get(knowledge_id)
-        if cached:
-            return cached
-
-        async with self._conversation_lock:
-            cached = self._conversation_ids.get(knowledge_id)
-            if cached:
-                return cached
-
-            conversations = await self._client.short_term.list_conversations(limit=100)
-            if conversations:
-                conversation_id = str(conversations[0].id)
-            else:
-                conversation = await self._client.short_term.create_conversation(
-                    f"shared-knowledge-{uuid4().hex}",
-                )
-                conversation_id = str(conversation.id)
-
-            self._conversation_ids[knowledge_id] = conversation_id
-            return conversation_id
-
-    async def add_memory(
+    async def create_conversation(
         self,
-        knowledge_id: str,
-        text: str,
-    ) -> tuple[str, str]:
-        conversation_id = await self.ensure_conversation(knowledge_id)
-        message = await self._client.short_term.add_message(
-            conversation_id,
-            "user",
-            text,
+        name: str,
+        *,
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        session_id = f"graph-{uuid4().hex}"
+        payload = {
+            "purpose": "shared-knowledge-graph",
+            "graph_name": name,
+            **(metadata or {}),
+        }
+        conversation = await self._client.short_term.create_conversation(
+            session_id,
+            metadata=payload,
         )
-        return str(message.id), conversation_id
+        return str(conversation.id or conversation.session_id or session_id)
 
-    async def search_entities(self, query: str, limit: int) -> list[Any]:
-        return await self._client.long_term.search_entities(query, limit=limit)
+    async def add_memory(self, conversation_id: str, text: str) -> str:
+        message = await self._client.short_term.add_message(
+            conversation_id=conversation_id,
+            role="user",
+            content=text,
+        )
+        return str(message.id)
 
-    async def get_context(self, knowledge_id: str, query: str) -> str:
-        conversation_id = await self.ensure_conversation(knowledge_id)
+    async def get_context(self, conversation_id: str, query: str) -> str:
         return await self._client.short_term.get_context(
             query,
             session_id=conversation_id,
         )
+
+    async def list_messages(
+        self,
+        conversation_id: str,
+        *,
+        limit: int = 100,
+    ) -> list[Any]:
+        conversation = await self._client.short_term.get_conversation(
+            conversation_id=conversation_id,
+        )
+        messages = list(getattr(conversation, "messages", None) or [])
+        if limit > 0:
+            return messages[:limit]
+        return messages
+
+    async def search_entities(self, query: str, limit: int) -> list[Any]:
+        return await self._client.long_term.search_entities(query, limit=limit)
 
     async def get_relationships(self, entity_id: str) -> list[dict[str, Any]]:
         rows = await self._client.query.cypher(
