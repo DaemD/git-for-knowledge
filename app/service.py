@@ -13,12 +13,16 @@ from app.models import (
     CreateKnowledgeBaseResult,
     EntityView,
     EvidenceView,
+    InviteToKnowledgeBaseResult,
     KB_ID_PATTERN,
     KnowledgeBaseListResult,
+    KnowledgeBaseMemberView,
+    KnowledgeBaseMembersResult,
     KnowledgeBaseView,
     ProvenanceView,
     RecallResult,
     RememberResult,
+    RevokeKnowledgeBaseAccessResult,
 )
 from app.nams import NamsStore
 from app.utils import stable_id
@@ -27,6 +31,8 @@ from app.utils import stable_id
 MAX_PROVENANCE_VALUE_LENGTH = 256
 WEB_UNATTRIBUTED_CLIENT_ID = "web-unattributed"
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+KB_MEMBER_ROLES = frozenset({"read", "write"})
 
 
 class KnowledgeService:
@@ -44,11 +50,14 @@ class KnowledgeService:
         display_name = _as_optional_str(
             claims.get("name") or claims.get("nickname")
         )
-        return await self._control.upsert_user(
+        user = await self._control.upsert_user(
             subject,
             email=email,
             display_name=display_name,
         )
+        if email:
+            await self._control.accept_pending_invites(user.id, email)
+        return user
 
     def username_for(self, user: UserRecord) -> str:
         """Stable public username derived from profile, never client-supplied."""
@@ -66,10 +75,13 @@ class KnowledgeService:
 
     async def list_knowledge_bases(self, user_id: str) -> KnowledgeBaseListResult:
         user = await self._require_user(user_id)
-        graphs = await self._control.list_graphs(user_id)
+        graphs = await self._control.list_accessible_graphs(user_id)
         return KnowledgeBaseListResult(
             username=self.username_for(user),
-            knowledge_bases=[_kb_view(graph) for graph in graphs],
+            knowledge_bases=[
+                _kb_view(item.graph, item.role, item.owner_email)
+                for item in graphs
+            ],
         )
 
     async def create_knowledge_base(
@@ -103,7 +115,96 @@ class KnowledgeService:
         )
         return CreateKnowledgeBaseResult(
             username=self.username_for(user),
-            knowledge_base=_kb_view(graph),
+            knowledge_base=_kb_view(graph, role="owner"),
+        )
+
+    async def invite_to_knowledge_base(
+        self,
+        user_id: str,
+        kb_id: str,
+        email: str,
+        role: str = "write",
+    ) -> InviteToKnowledgeBaseResult:
+        graph = await self._require_owned_kb(user_id, kb_id)
+        invitee_email = validate_email(email)
+        member_role = validate_member_role(role)
+        owner = await self._require_user(user_id)
+        if owner.email and invitee_email == owner.email.strip().lower():
+            raise ValueError("You cannot invite yourself to your own knowledge base")
+
+        await self._control.upsert_kb_invite(
+            graph_id=graph.id,
+            invitee_email=invitee_email,
+            role=member_role,
+            invited_by=user_id,
+        )
+
+        invitee = await self._control.find_user_by_email(invitee_email)
+        status = "pending"
+        if invitee is not None:
+            await self._control.upsert_graph_member(
+                graph_id=graph.id,
+                user_id=invitee.id,
+                role=member_role,
+            )
+            await self._control.accept_pending_invites(invitee.id, invitee_email)
+            status = "active"
+
+        return InviteToKnowledgeBaseResult(
+            kb_id=graph.kb_id,
+            email=invitee_email,
+            role=member_role,
+            status=status,
+        )
+
+    async def list_knowledge_base_members(
+        self,
+        user_id: str,
+        kb_id: str,
+    ) -> KnowledgeBaseMembersResult:
+        graph = await self._require_owned_kb(user_id, kb_id)
+        owner = await self._require_user(graph.user_id)
+        members = [
+            KnowledgeBaseMemberView(
+                email=owner.email or graph.user_id,
+                role="owner",
+                status="active",
+                user_id=owner.id,
+            )
+        ]
+        for member in await self._control.list_kb_members(graph.id):
+            members.append(
+                KnowledgeBaseMemberView(
+                    email=member.email or member.user_id,
+                    role=member.role,
+                    status="active",
+                    user_id=member.user_id,
+                )
+            )
+        for invite in await self._control.list_pending_invites(graph.id):
+            members.append(
+                KnowledgeBaseMemberView(
+                    email=invite.invitee_email,
+                    role=invite.role,
+                    status="pending",
+                    user_id=None,
+                )
+            )
+        return KnowledgeBaseMembersResult(kb_id=graph.kb_id, members=members)
+
+    async def revoke_knowledge_base_access(
+        self,
+        user_id: str,
+        kb_id: str,
+        email: str,
+    ) -> RevokeKnowledgeBaseAccessResult:
+        graph = await self._require_owned_kb(user_id, kb_id)
+        invitee_email = validate_email(email)
+        revoked = await self._control.revoke_kb_access(graph.id, invitee_email)
+        return RevokeKnowledgeBaseAccessResult(
+            kb_id=graph.kb_id,
+            email=invitee_email,
+            revoked=revoked,
         )
 
     async def remember(
@@ -121,7 +222,7 @@ class KnowledgeService:
 
         user = await self._require_user(user_id)
         username = self.username_for(user)
-        graph = await self._require_owned_kb(user_id, kb_id)
+        graph = await self._require_kb_access(user_id, kb_id, need_write=True)
         client_id = self._client_id_or_default(client_id)
         idempotency_key = self._provenance_value(
             "idempotency_key",
@@ -186,7 +287,7 @@ class KnowledgeService:
 
         user = await self._require_user(user_id)
         username = self.username_for(user)
-        graph = await self._require_owned_kb(user_id, kb_id)
+        graph = await self._require_kb_access(user_id, kb_id, need_write=False)
         conversation_id = graph.nams_conversation_id
 
         nams_entities, context, messages = await asyncio.gather(
@@ -297,6 +398,37 @@ class KnowledgeService:
                 "Call create_knowledge_base(kb_id) first."
             )
         return graph
+
+    async def _require_kb_access(
+        self,
+        user_id: str,
+        kb_id: str,
+        *,
+        need_write: bool,
+    ) -> GraphRecord:
+        kb_id = validate_kb_id(kb_id)
+        owned = await self._control.get_graph_by_kb(user_id, kb_id)
+        if owned is not None:
+            return owned
+
+        shared = await self._control.list_member_graphs_by_kb(user_id, kb_id)
+        if len(shared) > 1:
+            raise PermissionError(
+                "Multiple shared knowledge bases use this kb_id. "
+                "Ask the owner to rename one of them."
+            )
+        if len(shared) == 1:
+            graph, role = shared[0]
+            if need_write and role != "write":
+                raise PermissionError(
+                    "Write access required for this knowledge base."
+                )
+            return graph
+
+        raise PermissionError(
+            "Knowledge base not found or access denied. "
+            "Create it or ask the owner for an invite."
+        )
 
     @staticmethod
     def _provenance_value(name: str, value: str) -> str:
@@ -427,13 +559,34 @@ def validate_kb_id(kb_id: str) -> str:
     return kb_id
 
 
-def _kb_view(graph: GraphRecord) -> KnowledgeBaseView:
+def _kb_view(
+    graph: GraphRecord,
+    role: str = "owner",
+    owner_email: str | None = None,
+) -> KnowledgeBaseView:
     return KnowledgeBaseView(
         kb_id=graph.kb_id,
         name=graph.name,
         nams_conversation_id=graph.nams_conversation_id,
         created_at=graph.created_at,
+        role=role,
+        shared=role != "owner",
+        owner_email=owner_email if role != "owner" else None,
     )
+
+
+def validate_email(email: str) -> str:
+    normalized = email.strip().lower()
+    if not EMAIL_PATTERN.fullmatch(normalized):
+        raise ValueError("Invalid email address")
+    return normalized
+
+
+def validate_member_role(role: str) -> str:
+    normalized = role.strip().lower()
+    if normalized not in KB_MEMBER_ROLES:
+        raise ValueError("role must be 'read' or 'write'")
+    return normalized
 
 
 def _as_optional_str(value: Any) -> str | None:

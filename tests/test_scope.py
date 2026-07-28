@@ -10,6 +10,9 @@ async def test_public_mcp_surface_uses_kb_id_tools() -> None:
         "create_knowledge_base",
         "remember",
         "recall",
+        "invite_to_knowledge_base",
+        "list_knowledge_base_members",
+        "revoke_knowledge_base_access",
     ]
 
 

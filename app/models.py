@@ -66,6 +66,9 @@ class KnowledgeBaseView(BaseModel):
     name: str
     nams_conversation_id: str
     created_at: datetime
+    role: str = "owner"
+    shared: bool = False
+    owner_email: str | None = None
 
 
 class KnowledgeBaseListResult(BaseModel):
@@ -76,3 +79,28 @@ class KnowledgeBaseListResult(BaseModel):
 class CreateKnowledgeBaseResult(BaseModel):
     username: str
     knowledge_base: KnowledgeBaseView
+
+
+class KnowledgeBaseMemberView(BaseModel):
+    email: str
+    role: str
+    status: str
+    user_id: str | None = None
+
+
+class KnowledgeBaseMembersResult(BaseModel):
+    kb_id: str
+    members: list[KnowledgeBaseMemberView]
+
+
+class InviteToKnowledgeBaseResult(BaseModel):
+    kb_id: str
+    email: str
+    role: str
+    status: str
+
+
+class RevokeKnowledgeBaseAccessResult(BaseModel):
+    kb_id: str
+    email: str
+    revoked: bool

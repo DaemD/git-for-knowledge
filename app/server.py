@@ -16,9 +16,12 @@ from app.config import Settings, get_settings
 from app.db import ControlStore, PostgresControlStore
 from app.models import (
     CreateKnowledgeBaseResult,
+    InviteToKnowledgeBaseResult,
     KnowledgeBaseListResult,
+    KnowledgeBaseMembersResult,
     RecallResult,
     RememberResult,
+    RevokeKnowledgeBaseAccessResult,
 )
 from app.nams import NamsStore
 from app.service import KnowledgeService
@@ -128,7 +131,10 @@ def _build_mcp(settings: Settings) -> FastMCP:
             "answering a memory-dependent question, call recall with kb_id. "
             "When the user asks to preserve durable knowledge, call remember "
             "with kb_id. Use list_knowledge_bases / create_knowledge_base to "
-            "manage KBs. Before the first remember call in a project, read "
+            "manage KBs. Owners can invite collaborators with "
+            "invite_to_knowledge_base(email, role). Invitees sign in with the "
+            "same Google email, then use the shared kb_id for remember/recall. "
+            "Before the first remember call in a project, read "
             ".mcp-identity; if missing, call get_identity and save it. Pass "
             "that value as client_id on remember. Entity search remains "
             "workspace-wide soft isolation."
@@ -176,7 +182,7 @@ async def get_identity() -> str:
 
 @mcp.tool()
 async def list_knowledge_bases() -> KnowledgeBaseListResult:
-    """List knowledge bases owned by the authenticated user."""
+    """List knowledge bases owned by or shared with the authenticated user."""
     user = await _authenticated_user()
     return await _service().list_knowledge_bases(user.id)
 
@@ -227,6 +233,45 @@ async def recall(
     """
     user = await _authenticated_user()
     return await _service().recall(user.id, kb_id, question, limit)
+
+
+@mcp.tool()
+async def invite_to_knowledge_base(
+    kb_id: str,
+    email: str,
+    role: str = "write",
+) -> InviteToKnowledgeBaseResult:
+    """Invite another user to a knowledge base by Google email.
+
+    The invitee must sign in with that same email. They then use the shared
+    kb_id for remember/recall. role is 'read' or 'write'.
+    """
+    user = await _authenticated_user()
+    return await _service().invite_to_knowledge_base(
+        user.id,
+        kb_id,
+        email,
+        role,
+    )
+
+
+@mcp.tool()
+async def list_knowledge_base_members(
+    kb_id: str,
+) -> KnowledgeBaseMembersResult:
+    """List the owner, active members, and pending invites for a knowledge base."""
+    user = await _authenticated_user()
+    return await _service().list_knowledge_base_members(user.id, kb_id)
+
+
+@mcp.tool()
+async def revoke_knowledge_base_access(
+    kb_id: str,
+    email: str,
+) -> RevokeKnowledgeBaseAccessResult:
+    """Revoke a pending invite or active member access for a knowledge base."""
+    user = await _authenticated_user()
+    return await _service().revoke_knowledge_base_access(user.id, kb_id, email)
 
 
 async def health(_: Any) -> JSONResponse:
