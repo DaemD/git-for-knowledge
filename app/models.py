@@ -9,11 +9,19 @@ class EntityView(BaseModel):
     aliases: list[str] = Field(default_factory=list)
 
 
+class ProvenanceView(BaseModel):
+    """Client provenance retained by this MCP service for a NAMS source."""
+
+    client_id: str
+    accepted_at: str
+
+
 class EvidenceView(BaseModel):
     id: str
     source: str
     text: str
     ingested_at: str
+    provenance: ProvenanceView | None = None
 
 
 class ClaimView(BaseModel):
@@ -30,7 +38,7 @@ class ClaimView(BaseModel):
 
 
 class RememberResult(BaseModel):
-    memory_id: str
+    memory_id: str | None
     status: str = "processing"
 
 

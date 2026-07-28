@@ -36,30 +36,28 @@ class NamsStore:
             if cached:
                 return cached
 
-            conversations = await self._client.short_term.list_conversations(
-                user_identifier=knowledge_id,
-                limit=100,
-            )
+            conversations = await self._client.short_term.list_conversations(limit=100)
             if conversations:
                 conversation_id = str(conversations[0].id)
             else:
                 conversation = await self._client.short_term.create_conversation(
                     f"shared-knowledge-{uuid4().hex}",
-                    user_identifier=knowledge_id,
-                    metadata={"purpose": "shared-knowledge-mcp"},
                 )
                 conversation_id = str(conversation.id)
 
             self._conversation_ids[knowledge_id] = conversation_id
             return conversation_id
 
-    async def add_memory(self, knowledge_id: str, text: str) -> tuple[str, str]:
+    async def add_memory(
+        self,
+        knowledge_id: str,
+        text: str,
+    ) -> tuple[str, str]:
         conversation_id = await self.ensure_conversation(knowledge_id)
         message = await self._client.short_term.add_message(
             conversation_id,
             "user",
             text,
-            user_identifier=knowledge_id,
         )
         return str(message.id), conversation_id
 
