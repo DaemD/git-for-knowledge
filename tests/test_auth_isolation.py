@@ -1,8 +1,10 @@
 """Auth rejection and ownership isolation checks."""
 
+from unittest.mock import AsyncMock, patch
+
 from mcp.server.auth.provider import AccessToken
 
-from app.auth import Auth0TokenVerifier, DisabledAuthTokenVerifier
+from app.auth import Auth0TokenVerifier, DisabledAuthTokenVerifier, resolve_user_profile
 from app.config import Settings
 from app.db import InMemoryControlStore
 from app.service import KnowledgeService
@@ -65,3 +67,26 @@ async def test_bob_cannot_hit_alice_kb_id() -> None:
     except PermissionError:
         raised = True
     assert raised
+
+
+async def test_resolve_user_profile_fetches_email_from_userinfo() -> None:
+    settings = Settings(
+        memory_api_key="x",
+        memory_workspace_id="ws-shared",
+        auth_disabled=False,
+        oauth_issuer_url="https://dev-xx4jrebrryos1jre.us.auth0.com/",
+        oauth_audience="https://api.example",
+        public_base_url="https://app.example",
+    )
+    with (
+        patch("app.auth.get_settings", return_value=settings),
+        patch("app.auth._fetch_userinfo", new_callable=AsyncMock) as fetch,
+    ):
+        fetch.return_value = {"email": "alice@example.com", "name": "Alice"}
+        email, name = await resolve_user_profile({}, "token-123")
+    assert email == "alice@example.com"
+    assert name == "Alice"
+    fetch.assert_awaited_once_with(
+        "token-123",
+        "https://dev-xx4jrebrryos1jre.us.auth0.com/",
+    )

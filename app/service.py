@@ -24,6 +24,7 @@ from app.models import (
     RememberResult,
     RevokeKnowledgeBaseAccessResult,
 )
+from app.auth import current_access_token, resolve_user_profile
 from app.nams import NamsStore
 from app.utils import stable_id
 
@@ -46,9 +47,9 @@ class KnowledgeService:
         claims: dict[str, Any] | None = None,
     ) -> UserRecord:
         claims = claims or {}
-        email = _as_optional_str(claims.get("email"))
-        display_name = _as_optional_str(
-            claims.get("name") or claims.get("nickname")
+        email, display_name = await resolve_user_profile(
+            claims,
+            current_access_token(),
         )
         user = await self._control.upsert_user(
             subject,

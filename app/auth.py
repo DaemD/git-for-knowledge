@@ -5,11 +5,12 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import httpx
 import jwt
 from jwt import PyJWKClient
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 
-from app.config import Settings
+from app.config import Settings, get_settings
 
 
 class Auth0TokenVerifier(TokenVerifier):
@@ -98,6 +99,66 @@ def current_user_subject() -> tuple[str, dict[str, Any]]:
     if token is None or not token.subject:
         raise PermissionError("Authentication required")
     return token.subject, dict(token.claims or {})
+
+
+def current_access_token() -> str | None:
+    from mcp.server.auth.middleware.auth_context import get_access_token
+
+    token = get_access_token()
+    if token is None:
+        return None
+    return token.token
+
+
+async def resolve_user_profile(
+    claims: dict[str, Any],
+    access_token: str | None = None,
+) -> tuple[str | None, str | None]:
+    """Return ``(email, display_name)`` from JWT claims or Auth0 /userinfo."""
+    email = _optional_str(claims.get("email"))
+    display_name = _optional_str(claims.get("name") or claims.get("nickname"))
+
+    if email or not access_token:
+        return email, display_name
+
+    settings = get_settings()
+    if settings.auth_disabled or settings.oauth_issuer_url is None:
+        return email, display_name
+
+    userinfo = await _fetch_userinfo(access_token, str(settings.oauth_issuer_url))
+    if userinfo is None:
+        return email, display_name
+
+    return (
+        email or _optional_str(userinfo.get("email")),
+        display_name or _optional_str(userinfo.get("name") or userinfo.get("nickname")),
+    )
+
+
+async def _fetch_userinfo(
+    access_token: str,
+    issuer_url: str,
+) -> dict[str, Any] | None:
+    endpoint = f"{issuer_url.rstrip('/')}/userinfo"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                endpoint,
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            if response.status_code != 200:
+                return None
+            payload = response.json()
+            return payload if isinstance(payload, dict) else None
+    except httpx.HTTPError:
+        return None
+
+
+def _optional_str(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 def _extract_scopes(claims: dict[str, Any]) -> set[str]:
