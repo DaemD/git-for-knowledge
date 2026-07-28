@@ -43,16 +43,12 @@ def _build_mcp(settings: Settings) -> FastMCP:
         name="Shared Knowledge Graph",
         instructions=(
             "This server is persistent shared memory for Google-authenticated "
-            "users. Logical knowledge bases live in one shared NAMS workspace "
-            "and are addressed by kb_id. The authenticated user identity is "
-            "taken from OAuth (never trust a client-supplied username). Before "
-            "answering a memory-dependent question, call recall with kb_id. "
-            "When the user asks to preserve durable knowledge, call remember "
-            "with kb_id. Use list_knowledge_bases / create_knowledge_base to "
-            "manage KBs. Owners can invite collaborators with "
-            "invite_to_knowledge_base(email, role) and remove a KB with "
-            "delete_knowledge_base. Invitees sign in with the "
-            "same Google email, then use the shared kb_id for remember/recall. "
+            "users. Logical knowledge bases are addressed by kb_id. "
+            "Tools use git-style names: kb_list, kb_create, kb_push, kb_fetch, "
+            "kb_invite, kb_members, kb_revoke, kb_delete. "
+            "When the user says 'kb list' / 'kb push' / 'kb fetch' etc. in chat, "
+            "call the matching tool. Prefer kb_id from the project when omitted. "
+            "Identity comes from OAuth (never a client-supplied username). "
             "Entity search remains workspace-wide soft isolation."
         ),
         stateless_http=True,
@@ -85,40 +81,40 @@ async def _authenticated_user():
 
 
 @mcp.tool()
-async def list_knowledge_bases() -> KnowledgeBaseListResult:
-    """List knowledge bases owned by or shared with the authenticated user."""
+async def kb_list() -> KnowledgeBaseListResult:
+    """kb list — list knowledge bases you own or that are shared with you."""
     user = await _authenticated_user()
     return await _service().list_knowledge_bases(user.id)
 
 
 @mcp.tool()
-async def create_knowledge_base(
+async def kb_create(
     kb_id: str,
     name: str | None = None,
 ) -> CreateKnowledgeBaseResult:
-    """Create a logical knowledge base for the authenticated user.
+    """kb create <kb_id> [name] — create a knowledge base.
 
-    kb_id is the stable identifier clients pass to remember/recall.
+    kb_id is the stable identifier clients pass to kb_push / kb_fetch.
     """
     user = await _authenticated_user()
     return await _service().create_knowledge_base(user.id, kb_id, name)
 
 
 @mcp.tool()
-async def delete_knowledge_base(kb_id: str) -> DeleteKnowledgeBaseResult:
-    """Delete a knowledge base you own (Postgres + best-effort NAMS cleanup)."""
+async def kb_delete(kb_id: str) -> DeleteKnowledgeBaseResult:
+    """kb delete <kb_id> — delete a knowledge base you own."""
     user = await _authenticated_user()
     return await _service().delete_knowledge_base(user.id, kb_id)
 
 
 @mcp.tool()
-async def remember(
+async def kb_push(
     kb_id: str,
     text: str,
     idempotency_key: str,
     client_id: str | None = None,
 ) -> RememberResult:
-    """Remember durable text in the authenticated user's knowledge base.
+    """kb push <text> — store durable knowledge in a knowledge base.
 
     Username comes from OAuth. Pass kb_id to choose which logical graph to hit.
     """
@@ -133,12 +129,12 @@ async def remember(
 
 
 @mcp.tool()
-async def recall(
+async def kb_fetch(
     kb_id: str,
     question: str,
     limit: int = 5,
 ) -> RecallResult:
-    """Recall memory from the authenticated user's knowledge base.
+    """kb fetch <question> — retrieve knowledge from a knowledge base.
 
     Username comes from OAuth. Pass kb_id to choose which logical graph to hit.
     """
@@ -147,15 +143,15 @@ async def recall(
 
 
 @mcp.tool()
-async def invite_to_knowledge_base(
+async def kb_invite(
     kb_id: str,
     email: str,
     role: str = "write",
 ) -> InviteToKnowledgeBaseResult:
-    """Invite another user to a knowledge base by Google email.
+    """kb invite <email> [read|write] — share a knowledge base by Google email.
 
-    The invitee must sign in with that same email. They then use the shared
-    kb_id for remember/recall. role is 'read' or 'write'.
+    The invitee must sign in with that same email, then use the shared kb_id
+    with kb_push / kb_fetch. role is 'read' or 'write'.
     """
     user = await _authenticated_user()
     return await _service().invite_to_knowledge_base(
@@ -167,20 +163,20 @@ async def invite_to_knowledge_base(
 
 
 @mcp.tool()
-async def list_knowledge_base_members(
+async def kb_members(
     kb_id: str,
 ) -> KnowledgeBaseMembersResult:
-    """List the owner, active members, and pending invites for a knowledge base."""
+    """kb members — list owner, members, and pending invites for a KB."""
     user = await _authenticated_user()
     return await _service().list_knowledge_base_members(user.id, kb_id)
 
 
 @mcp.tool()
-async def revoke_knowledge_base_access(
+async def kb_revoke(
     kb_id: str,
     email: str,
 ) -> RevokeKnowledgeBaseAccessResult:
-    """Revoke a pending invite or active member access for a knowledge base."""
+    """kb revoke <email> — revoke invite or member access for a KB."""
     user = await _authenticated_user()
     return await _service().revoke_knowledge_base_access(user.id, kb_id, email)
 

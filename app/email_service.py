@@ -43,7 +43,7 @@ async def send_kb_invite_email(
         f"1. Sign in to Shared Knowledge MCP with this exact Google email: "
         f"{to_email}\n"
         f"2. Use the same MCP URL and Client ID as your teammate.\n"
-        f"3. Call list_knowledge_bases, then recall/remember with "
+        f"3. In chat: kb list, then kb fetch / kb push with "
         f'kb_id="{kb_id}".\n'
     )
     html = f"""
@@ -53,8 +53,8 @@ async def send_kb_invite_email(
     <ol>
       <li>Sign in with Google as <code>{to_email}</code></li>
       <li>Connect the Shared Knowledge MCP (same URL + Client ID)</li>
-      <li>Use <code>list_knowledge_bases</code>, then
-          <code>recall</code>/<code>remember</code> with
+      <li>In chat type <code>kb list</code>, then
+          <code>kb fetch</code> / <code>kb push</code> with
           <code>kb_id="{kb_id}"</code></li>
     </ol>
     """

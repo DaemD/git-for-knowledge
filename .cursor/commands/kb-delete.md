@@ -1,11 +1,10 @@
-# Delete knowledge base
+# kb delete
 
-Use Shared Knowledge MCP `delete_knowledge_base`.
+Owner-only. Deletes the knowledge base from Postgres and best-effort clears the NAMS conversation.
 
-1. Read `.cursor/kb-id` if present, otherwise parse `$ARGUMENTS` as the kb_id.
-2. Call `delete_knowledge_base` for that kb_id (owner only).
-3. Confirm deleted / whether NAMS conversation was cleared.
-4. If `.cursor/kb-id` matched the deleted KB, tell the user to update or remove that file.
+1. kb_id from `$ARGUMENTS` or `.cursor/kb-id`.
+2. Confirm destructive intent briefly, then call `kb_delete`.
+3. If `.cursor/kb-id` matched, tell the user to clear/update that file.
 
 Arguments:
 

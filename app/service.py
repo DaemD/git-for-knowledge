@@ -498,7 +498,7 @@ class KnowledgeService:
         if graph is None:
             raise PermissionError(
                 "Knowledge base not found for this user. "
-                "Call create_knowledge_base(kb_id) first."
+                "Call kb_create(kb_id) first."
             )
         return graph
 

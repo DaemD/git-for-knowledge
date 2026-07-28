@@ -1,12 +1,27 @@
-# List knowledge bases
+# kb — shared knowledge commands
 
-Use the Shared Knowledge MCP `list_knowledge_bases` tool.
+Users type git-style commands in chat. Map them to Shared Knowledge MCP tools.
 
-Show each KB as:
-- `kb_id`
-- name
-- role (`owner` / `read` / `write`)
-- whether it is shared
-- owner email if shared
+## Command → tool
 
-Then tell me which one is selected in `.cursor/kb-id` if that file exists.
+| User types | MCP tool |
+|------------|----------|
+| `kb list` | `kb_list` |
+| `kb create <id> [name]` | `kb_create` |
+| `kb use <id>` | save `<id>` to `.cursor/kb-id` (no MCP call) |
+| `kb push <text>` | `kb_push` |
+| `kb fetch <question>` | `kb_fetch` |
+| `kb invite <email> [read\|write]` | `kb_invite` |
+| `kb members` | `kb_members` |
+| `kb revoke <email>` | `kb_revoke` |
+| `kb delete <id>` | `kb_delete` |
+
+## Defaults
+
+- Prefer `kb_id` from `.cursor/kb-id` when the command omits an id.
+- For `kb push`, use a fresh UUID as `idempotency_key`.
+- Confirm results briefly after each command.
+
+## Arguments
+
+$ARGUMENTS

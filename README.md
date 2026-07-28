@@ -7,8 +7,8 @@ comes from OAuth (not a client-supplied field).
 ## Addressing
 
 ```text
-remember(kb_id="project-a", text=..., idempotency_key=...)
-recall(kb_id="project-a", question=...)
+kb_push(kb_id="project-a", text=..., idempotency_key=...)
+kb_fetch(kb_id="project-a", question=...)
 ```
 
 Logical key = authenticated user + `kb_id` → NAMS conversation.
@@ -17,14 +17,36 @@ Bob cannot use Alice’s `kb_id`; ownership is enforced in Postgres.
 
 Entity search remains workspace-wide soft isolation inside Neo4j.
 
-## MCP tools
+## MCP tools (git-style)
 
-- `list_knowledge_bases` / `create_knowledge_base(kb_id, name?)` / `delete_knowledge_base(kb_id)`
-- `remember(kb_id, text, idempotency_key, client_id?)`
-- `recall(kb_id, question, limit?)`
-- `invite_to_knowledge_base` / `list_knowledge_base_members` / `revoke_knowledge_base_access`
+| Tool | What it does |
+|------|----------------|
+| `kb_list` | List your knowledge bases |
+| `kb_create(kb_id, name?)` | Create a KB |
+| `kb_delete(kb_id)` | Delete a KB you own |
+| `kb_push(kb_id, text, idempotency_key, client_id?)` | Store knowledge |
+| `kb_fetch(kb_id, question, limit?)` | Retrieve knowledge |
+| `kb_invite(kb_id, email, role?)` | Share by Google email |
+| `kb_members(kb_id)` | List members / invites |
+| `kb_revoke(kb_id, email)` | Remove access |
 
 Invite emails are optional (`INVITE_EMAIL_ENABLED` + Resend).
+
+## Easy commands (Cursor chat)
+
+Type these in AI chat (or `/kb-push` slash commands). The model calls the
+matching MCP tool — there is no separate shell.
+
+See [docs/KB_COMMANDS.md](docs/KB_COMMANDS.md).
+
+```text
+kb list
+kb create my-project
+kb use my-project
+kb push We use Postgres for the control plane
+kb fetch What database do we use?
+kb invite alice@gmail.com write
+```
 
 ## Local setup
 
@@ -34,13 +56,8 @@ Copy-Item .env.example .env
 uvicorn app.server:app --reload
 ```
 
-Required env: `MEMORY_API_KEY`, `MEMORY_WORKSPACE_ID`, `DATABASE_URL`, plus
-OAuth settings or `AUTH_DISABLED=true`.
+## Auth note
 
-MCP URL: `https://host/mcp`
-
-## Tests
-
-```powershell
-pytest
-```
+Configure Auth0 (or compatible) with Google social login. Set
+`PUBLIC_BASE_URL` to the public MCP URL. Cursor callbacks must be Cursor
+localhost URLs, not your Railway `/mcp` path.

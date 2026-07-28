@@ -1,29 +1,41 @@
 ---
-description: Use Shared Knowledge MCP for durable project memory
+description: Shared Knowledge MCP — git-style kb commands
 alwaysApply: true
 ---
 
-# Shared knowledge
+# Shared knowledge (`kb` commands)
 
-This project uses the Shared Knowledge MCP server.
+Users type git-style commands in chat. Call the matching MCP tool.
 
-## Default knowledge base
+## Vocabulary
 
-- Prefer the `kb_id` stored in `.cursor/kb-id` when present.
-- If missing, call `list_knowledge_bases` before guessing.
+| User says | MCP tool |
+|-----------|----------|
+| `kb list` | `kb_list` |
+| `kb create <id> [name]` | `kb_create` |
+| `kb use <id>` | write `.cursor/kb-id` (no MCP call) |
+| `kb push <text>` | `kb_push` |
+| `kb fetch <question>` | `kb_fetch` |
+| `kb invite <email> [read\|write]` | `kb_invite` |
+| `kb members` | `kb_members` |
+| `kb revoke <email>` | `kb_revoke` |
+| `kb delete <id>` | `kb_delete` |
 
-## When to recall
+Also accept natural language that clearly means the same thing
+(e.g. "push this to the knowledge base", "fetch what DB we use").
 
-Before answering architecture, decisions, stack, or “what did we decide” questions, call `recall` with the project `kb_id`.
+## Defaults
 
-## When to remember
+- Prefer `kb_id` from `.cursor/kb-id`.
+- If missing and required, call `kb_list` or ask.
+- `kb_push` always needs a fresh UUID `idempotency_key`.
 
-When the user states a durable decision, fact, or constraint worth keeping across chats, call `remember` with:
-- that `kb_id`
-- a clear text summary
-- a fresh UUID `idempotency_key`
+## Auto behavior
+
+- Before architecture / "what did we decide" answers → `kb_fetch`.
+- When the user states a durable decision to keep → offer or run `kb_push`.
 
 ## Do not
 
-- Do not invent memories that were not recalled.
-- Do not ask the user to re-explain known durable project facts before trying `recall`.
+- Invent memories that were not fetched.
+- Confuse OAuth identity with `.cursor/kb-id` (kb-id is only which graph).

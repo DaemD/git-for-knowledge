@@ -3,14 +3,14 @@
 ## Model
 
 One shared NAMS workspace. Logical knowledge bases are `(auth_user, kb_id)` →
-NAMS conversation. Clients pass `kb_id` on every remember/recall. Username is
-derived from the verified OAuth identity, never from an untrusted payload field.
+NAMS conversation. Clients pass `kb_id` on every `kb_push` / `kb_fetch`.
+Username is derived from the verified OAuth identity, never from an untrusted
+payload field.
 
 ## Tools
 
-`list_knowledge_bases`, `create_knowledge_base`, `remember`,
-`recall`, plus invite/member tools.
-`recall`
+`kb_list`, `kb_create`, `kb_delete`, `kb_push`, `kb_fetch`, `kb_invite`,
+`kb_members`, `kb_revoke`.
 
 ## Isolation
 

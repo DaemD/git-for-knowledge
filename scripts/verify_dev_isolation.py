@@ -60,7 +60,7 @@ async def main(base_url: str) -> None:
             client,
             base_url,
             alice,
-            "create_knowledge_base",
+            "kb_create",
             {"kb_id": kb_id, "name": "Alice Private"},
         )
         print("alice create:", json.dumps(created)[:300])
@@ -69,7 +69,7 @@ async def main(base_url: str) -> None:
             client,
             base_url,
             bob,
-            "list_knowledge_bases",
+            "kb_list",
             {},
         )
         print("bob list:", bob_list)
