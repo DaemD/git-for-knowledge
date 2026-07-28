@@ -15,6 +15,7 @@ from app.config import Settings, get_settings
 from app.db import ControlStore, PostgresControlStore
 from app.models import (
     CreateKnowledgeBaseResult,
+    DeleteKnowledgeBaseResult,
     InviteToKnowledgeBaseResult,
     KnowledgeBaseListResult,
     KnowledgeBaseMembersResult,
@@ -49,7 +50,8 @@ def _build_mcp(settings: Settings) -> FastMCP:
             "When the user asks to preserve durable knowledge, call remember "
             "with kb_id. Use list_knowledge_bases / create_knowledge_base to "
             "manage KBs. Owners can invite collaborators with "
-            "invite_to_knowledge_base(email, role). Invitees sign in with the "
+            "invite_to_knowledge_base(email, role) and remove a KB with "
+            "delete_knowledge_base. Invitees sign in with the "
             "same Google email, then use the shared kb_id for remember/recall. "
             "Entity search remains workspace-wide soft isolation."
         ),
@@ -100,6 +102,13 @@ async def create_knowledge_base(
     """
     user = await _authenticated_user()
     return await _service().create_knowledge_base(user.id, kb_id, name)
+
+
+@mcp.tool()
+async def delete_knowledge_base(kb_id: str) -> DeleteKnowledgeBaseResult:
+    """Delete a knowledge base you own (Postgres + best-effort NAMS cleanup)."""
+    user = await _authenticated_user()
+    return await _service().delete_knowledge_base(user.id, kb_id)
 
 
 @mcp.tool()

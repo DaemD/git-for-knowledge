@@ -7,6 +7,7 @@ async def test_public_mcp_surface_uses_kb_id_tools() -> None:
     assert [tool.name for tool in tools] == [
         "list_knowledge_bases",
         "create_knowledge_base",
+        "delete_knowledge_base",
         "remember",
         "recall",
         "invite_to_knowledge_base",

@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import AsyncMock, patch
 
 from app.db import InMemoryControlStore
 from app.service import KnowledgeService
@@ -144,6 +145,29 @@ async def test_owner_can_list_and_revoke_members(service: KnowledgeService) -> N
 
     with pytest.raises(PermissionError, match="access denied"):
         await service.recall(alice.id, "team-project", "anything")
+
+
+async def test_invite_attempts_email(service: KnowledgeService) -> None:
+    bob = await service.ensure_user("bob", {"email": "bob@example.com", "name": "Bob"})
+    await service.create_knowledge_base(bob.id, "team-project", "Team Project")
+
+    with patch(
+        "app.service.send_kb_invite_email",
+        new_callable=AsyncMock,
+    ) as send_email:
+        send_email.return_value = type(
+            "R",
+            (),
+            {"sent": True, "error": None},
+        )()
+        invited = await service.invite_to_knowledge_base(
+            bob.id,
+            "team-project",
+            "alice@example.com",
+            role="read",
+        )
+    assert invited.email_sent is True
+    send_email.assert_awaited_once()
 
 
 async def test_non_owner_cannot_invite(service: KnowledgeService) -> None:

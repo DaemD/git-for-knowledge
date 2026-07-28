@@ -37,6 +37,9 @@ class FakeNamsStore:
         )
         return message_id
 
+    async def clear_conversation(self, conversation_id: str) -> None:
+        self.messages.pop(conversation_id, None)
+
     async def get_context(self, conversation_id: str, query: str) -> str:
         from app.memory_meta import strip_memory_meta
 
@@ -96,11 +99,33 @@ async def test_remember_and_recall_use_kb_id_payload(service: KnowledgeService) 
     assert "Neo4j" in result.context
     assert "skg_meta" not in result.context
     assert result.sources[0].provenance.client_id == "cursor-install-1"
+    assert result.sources[0].provenance.writer_email == "alice@example.com"
+    assert result.sources[0].provenance.writer_sub == "user-a"
+    assert result.sources[0].provenance.kb_id == "project-a"
     stored = service._store.messages[created.knowledge_base.nams_conversation_id][0]
     assert "skg_meta" in stored.content
     assert 'kb_id="project-a"' in stored.content
     assert 'owner_email="alice@example.com"' in stored.content
     assert 'writer_sub="user-a"' in stored.content
+
+
+async def test_delete_knowledge_base_removes_access(service: KnowledgeService) -> None:
+    user = await service.ensure_user("user-a", {"email": "alice@example.com"})
+    await service.create_knowledge_base(user.id, "temp-kb")
+    await service.remember(
+        user.id,
+        "temp-kb",
+        "temporary note",
+        idempotency_key="temp-1",
+    )
+    deleted = await service.delete_knowledge_base(user.id, "temp-kb")
+    assert deleted.deleted is True
+    assert deleted.nams_cleared is True
+
+    listed = await service.list_knowledge_bases(user.id)
+    assert listed.knowledge_bases == []
+    with pytest.raises(PermissionError):
+        await service.recall(user.id, "temp-kb", "temporary")
 
 
 async def test_recall_drops_entities_from_other_conversations(

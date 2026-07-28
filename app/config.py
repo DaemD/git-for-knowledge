@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     # Dev-only: accept Authorization Bearer tokens shaped as sub:<user-id>.
     auth_disabled: bool = False
 
+    # Optional invite emails via Resend (https://resend.com).
+    invite_email_enabled: bool = False
+    resend_api_key: SecretStr | None = None
+    email_from: str = ""
+    invite_docs_url: str = ""
+
     @property
     def required_scopes(self) -> list[str]:
         return [scope for scope in self.oauth_required_scopes.split() if scope]

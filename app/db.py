@@ -181,6 +181,7 @@ class ControlStore(Protocol):
         name: str,
         nams_conversation_id: str,
     ) -> GraphRecord: ...
+    async def delete_graph(self, user_id: str, kb_id: str) -> GraphRecord | None: ...
     async def begin_write(
         self,
         *,
@@ -377,6 +378,19 @@ class PostgresControlStore:
                     f"A knowledge base with kb_id {kb_id!r} already exists"
                 ) from exc
         return _graph_from_row(row)
+
+    async def delete_graph(self, user_id: str, kb_id: str) -> GraphRecord | None:
+        async with self._pool_required().acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                DELETE FROM graphs
+                WHERE user_id = $1 AND kb_id = $2
+                RETURNING id, user_id, kb_id, name, nams_conversation_id, created_at
+                """,
+                user_id,
+                kb_id,
+            )
+        return _graph_from_row(row) if row else None
 
     async def begin_write(
         self,
@@ -862,6 +876,28 @@ class InMemoryControlStore:
         )
         self.graphs[record.id] = record
         return record
+
+    async def delete_graph(self, user_id: str, kb_id: str) -> GraphRecord | None:
+        existing = await self.get_graph_by_kb(user_id, kb_id)
+        if existing is None:
+            return None
+        del self.graphs[existing.id]
+        self.graph_members = {
+            key: member
+            for key, member in self.graph_members.items()
+            if member.graph_id != existing.id
+        }
+        self.kb_invites = {
+            key: invite
+            for key, invite in self.kb_invites.items()
+            if invite.graph_id != existing.id
+        }
+        self.memory_writes = {
+            key: write
+            for key, write in self.memory_writes.items()
+            if write.graph_id != existing.id
+        }
+        return existing
 
     async def begin_write(
         self,

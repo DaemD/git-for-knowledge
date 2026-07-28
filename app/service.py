@@ -8,14 +8,19 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.db import ControlStore, GraphRecord, MemoryWrite, UserRecord, hash_content
+from app.auth import current_access_token, resolve_user_profile
+from app.config import get_settings
+from app.email_service import send_kb_invite_email
 from app.memory_meta import (
     build_memory_metadata,
     metadata_matches_kb,
+    parse_memory_meta,
     strip_memory_meta,
 )
 from app.models import (
     ClaimView,
     CreateKnowledgeBaseResult,
+    DeleteKnowledgeBaseResult,
     EntityView,
     EvidenceView,
     InviteToKnowledgeBaseResult,
@@ -29,7 +34,6 @@ from app.models import (
     RememberResult,
     RevokeKnowledgeBaseAccessResult,
 )
-from app.auth import current_access_token, resolve_user_profile
 from app.nams import NamsStore
 from app.utils import stable_id
 
@@ -159,11 +163,45 @@ class KnowledgeService:
             await self._control.accept_pending_invites(invitee.id, invitee_email)
             status = "active"
 
+        email_result = await send_kb_invite_email(
+            get_settings(),
+            to_email=invitee_email,
+            kb_id=graph.kb_id,
+            kb_name=graph.name,
+            role=member_role,
+            inviter_email=owner.email,
+            inviter_name=owner.display_name,
+        )
         return InviteToKnowledgeBaseResult(
             kb_id=graph.kb_id,
             email=invitee_email,
             role=member_role,
             status=status,
+            email_sent=email_result.sent,
+            email_error=email_result.error,
+        )
+
+    async def delete_knowledge_base(
+        self,
+        user_id: str,
+        kb_id: str,
+    ) -> DeleteKnowledgeBaseResult:
+        graph = await self._require_owned_kb(user_id, kb_id)
+        nams_cleared = False
+        try:
+            await self._store.clear_conversation(graph.nams_conversation_id)
+            nams_cleared = True
+        except Exception:
+            # Still remove control-plane row so the KB stops being usable.
+            nams_cleared = False
+
+        deleted = await self._control.delete_graph(user_id, graph.kb_id)
+        if deleted is None:
+            raise PermissionError("Knowledge base could not be deleted")
+        return DeleteKnowledgeBaseResult(
+            kb_id=graph.kb_id,
+            deleted=True,
+            nams_cleared=nams_cleared,
         )
 
     async def list_knowledge_base_members(
@@ -376,7 +414,6 @@ class KnowledgeService:
                     and source.source == "nams"
                 ):
                     continue
-                source.text = strip_memory_meta(source.text)
                 sources_by_id.setdefault(source.id, source)
 
         if not sources_by_id:
@@ -391,14 +428,12 @@ class KnowledgeService:
                     or ""
                 )
                 evidence_id = message_id or stable_id("msg", text)
-                sources_by_id[evidence_id] = EvidenceView(
-                    id=evidence_id,
-                    source="nams-conversation",
-                    text=strip_memory_meta(text),
+                sources_by_id[evidence_id] = self._evidence_from_text(
+                    evidence_id=evidence_id,
+                    source_label="nams-conversation",
+                    text=text,
                     ingested_at=created,
-                    provenance=self._write_to_provenance(
-                        writes_by_message_id.get(evidence_id)
-                    ),
+                    write=writes_by_message_id.get(evidence_id),
                 )
 
         relationships_by_id: dict[str, ClaimView] = {}
@@ -592,18 +627,44 @@ class KnowledgeService:
                 or mention.get("timestamp")
                 or ""
             )
-            evidence.append(
-                EvidenceView(
-                    id=str(evidence_id),
-                    source="nams",
-                    text=str(text),
-                    ingested_at=str(ingested_at),
-                    provenance=cls._write_to_provenance(
-                        writes_by_message_id.get(str(evidence_id))
-                    ),
-                )
+            source = cls._evidence_from_text(
+                evidence_id=str(evidence_id),
+                source_label="nams",
+                text=str(text),
+                ingested_at=str(ingested_at),
+                write=writes_by_message_id.get(str(evidence_id)),
             )
+            evidence.append(source)
         return evidence
+
+    @classmethod
+    def _evidence_from_text(
+        cls,
+        *,
+        evidence_id: str,
+        source_label: str,
+        text: str,
+        ingested_at: str,
+        write: MemoryWrite | None,
+    ) -> EvidenceView:
+        meta = parse_memory_meta(text)
+        base = cls._write_to_provenance(write)
+        return EvidenceView(
+            id=evidence_id,
+            source=source_label,
+            text=strip_memory_meta(text),
+            ingested_at=ingested_at,
+            provenance=ProvenanceView(
+                client_id=(
+                    base.client_id if base else WEB_UNATTRIBUTED_CLIENT_ID
+                ),
+                accepted_at=base.accepted_at if base else ingested_at,
+                writer_sub=meta.get("writer_sub") or None,
+                writer_email=meta.get("writer_email") or None,
+                kb_id=meta.get("kb_id") or None,
+                owner_email=meta.get("owner_email") or None,
+            ),
+        )
 
     @staticmethod
     def _write_to_provenance(

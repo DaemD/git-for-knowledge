@@ -74,6 +74,10 @@ class NamsStore:
         )
         return str(message.id)
 
+    async def clear_conversation(self, conversation_id: str) -> None:
+        """Delete a NAMS conversation (best-effort KB cleanup)."""
+        await self._client.short_term.clear_session(conversation_id=conversation_id)
+
     async def get_context(self, conversation_id: str, query: str) -> str:
         return await self._client.short_term.get_context(
             query,

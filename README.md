@@ -19,10 +19,12 @@ Entity search remains workspace-wide soft isolation inside Neo4j.
 
 ## MCP tools
 
-- `list_knowledge_bases` / `create_knowledge_base(kb_id, name?)`
+- `list_knowledge_bases` / `create_knowledge_base(kb_id, name?)` / `delete_knowledge_base(kb_id)`
 - `remember(kb_id, text, idempotency_key, client_id?)`
 - `recall(kb_id, question, limit?)`
 - `invite_to_knowledge_base` / `list_knowledge_base_members` / `revoke_knowledge_base_access`
+
+Invite emails are optional (`INVITE_EMAIL_ENABLED` + Resend).
 
 ## Local setup
 

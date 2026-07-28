@@ -20,6 +20,10 @@ class ProvenanceView(BaseModel):
 
     client_id: str
     accepted_at: str
+    writer_sub: str | None = None
+    writer_email: str | None = None
+    kb_id: str | None = None
+    owner_email: str | None = None
 
 
 class EvidenceView(BaseModel):
@@ -98,9 +102,17 @@ class InviteToKnowledgeBaseResult(BaseModel):
     email: str
     role: str
     status: str
+    email_sent: bool = False
+    email_error: str | None = None
 
 
 class RevokeKnowledgeBaseAccessResult(BaseModel):
     kb_id: str
     email: str
     revoked: bool
+
+
+class DeleteKnowledgeBaseResult(BaseModel):
+    kb_id: str
+    deleted: bool
+    nams_cleared: bool = False
