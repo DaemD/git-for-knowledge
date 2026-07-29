@@ -46,16 +46,53 @@
           <a class="btn primary" href="#connect">Connect your AI — free beta</a>
           <a class="btn ghost" href="#examples">See real examples</a>
         </div>
+
+        <div
+          class="demo-stage"
+          id="hero-demo"
+          data-demo="hero"
+          aria-label="Live demo: push in Cursor, fetch in Claude"
+        >
+          <div class="demo-panes">
+            <div class="demo-pane" data-pane="cursor">
+              <div class="demo-pane-bar">
+                <span class="demo-dots" aria-hidden="true"></span>
+                <span>Cursor</span>
+              </div>
+              <pre class="demo-body" id="hero-cursor-body"><span class="dim">&gt; </span></pre>
+            </div>
+            <div class="demo-bridge" aria-hidden="true">
+              <span class="demo-bridge-line"></span>
+              <span class="demo-bridge-pulse"></span>
+            </div>
+            <div class="demo-pane" data-pane="claude">
+              <div class="demo-pane-bar">
+                <span class="demo-dots" aria-hidden="true"></span>
+                <span>Claude</span>
+              </div>
+              <pre class="demo-body" id="hero-claude-body"><span class="dim">&gt; </span></pre>
+            </div>
+          </div>
+          <p class="demo-caption">push once · fetch anywhere</p>
+          <noscript>
+            <pre class="demo-fallback"><code>&gt; kb push
+Auth uses Postgres + Auth0. Sessions in Redis.
+[sys] ok — stored in acme-core
+
+&gt; kb fetch architecture postgres
+Auth uses Postgres + Auth0. Sessions in Redis.</code></pre>
+          </noscript>
+        </div>
       </section>
 
       <section class="strip" aria-label="Works with">
         <p>One memory layer across the tools you already pay for</p>
-        <ul>
-          <li>Cursor</li>
-          <li>Antigravity</li>
-          <li>Claude Code</li>
-          <li>Claude</li>
-          <li>ChatGPT</li>
+        <ul class="strip-tools" id="strip-tools">
+          <li data-tool>Cursor</li>
+          <li data-tool>Antigravity</li>
+          <li data-tool>Claude Code</li>
+          <li data-tool>Claude</li>
+          <li data-tool>ChatGPT</li>
         </ul>
       </section>
 
@@ -67,6 +104,31 @@
           Slack threads die. So you paste the same architecture note —
           again — and burn tokens explaining what you already decided.
         </p>
+        <div
+          class="amnesia-demo"
+          id="amnesia-demo"
+          data-demo="amnesia"
+          aria-label="Demo: chat context clearing across tools"
+        >
+          <div class="amnesia-panes">
+            <div class="amnesia-pane" data-amnesia="0">
+              <span class="amnesia-label">Cursor</span>
+              <p class="amnesia-text">We use Postgres for the auth service…</p>
+              <span class="amnesia-cleared">context cleared</span>
+            </div>
+            <div class="amnesia-pane" data-amnesia="1">
+              <span class="amnesia-label">Claude</span>
+              <p class="amnesia-text">We use Postgres for the auth service…</p>
+              <span class="amnesia-cleared">context cleared</span>
+            </div>
+            <div class="amnesia-pane" data-amnesia="2">
+              <span class="amnesia-label">ChatGPT</span>
+              <p class="amnesia-text">We use Postgres for the auth service…</p>
+              <span class="amnesia-cleared">context cleared</span>
+            </div>
+          </div>
+        </div>
+
         <div class="pain-grid">
           <div>
             <strong>Without grphly</strong>
@@ -133,59 +195,93 @@
           question.
         </p>
 
-        <div class="example-list">
-          <article>
+        <div class="example-live" id="example-live" data-demo="examples">
+          <div class="example-tabs" role="tablist" aria-label="Example demos">
+            <button
+              type="button"
+              class="example-tab active"
+              role="tab"
+              aria-selected="true"
+              data-ex="0"
+            >
+              Cursor → Claude Code
+            </button>
+            <button
+              type="button"
+              class="example-tab"
+              role="tab"
+              aria-selected="false"
+              data-ex="1"
+            >
+              ChatGPT → Cursor
+            </button>
+            <button
+              type="button"
+              class="example-tab"
+              role="tab"
+              aria-selected="false"
+              data-ex="2"
+            >
+              Claude → handoff
+            </button>
+          </div>
+
+          <article class="example-panel active" data-ex-panel="0">
             <h3>Cursor session → Claude Code</h3>
             <p>
               After a long Cursor thread, push the summary into grphly. Next
               day in Claude Code, fetch it — same stack decisions, no re-brief.
             </p>
-            <pre><code>kb push """
+            <div class="demo-pane example-term">
+              <div class="demo-pane-bar">
+                <span class="demo-dots" aria-hidden="true"></span>
+                <span class="ex-term-label">Cursor → Claude Code</span>
+              </div>
+              <pre class="demo-body" data-ex-body="0"></pre>
+            </div>
+            <noscript>
+              <pre><code>kb push """
 Session summary (Cursor, auth refactor):
 - Auth0 + Google social only; no local passwords
 - Access tokens audience = https://grphly-dev.miless.app/mcp
 - Callbacks: localhost:8787 + Claude auth_callback
 - Rejected: rolling our own JWT store
-Open: invite email copy still draft
 """
 
 kb fetch What did we decide about auth and callbacks?</code></pre>
+            </noscript>
           </article>
-          <article>
+
+          <article class="example-panel" data-ex-panel="1">
             <h3>ChatGPT research → team Cursor</h3>
             <p>
               Cofounder researches pricing and competitors in ChatGPT, pushes
               the condensed notes. You open Cursor and fetch the market context
               without reading their chat log.
             </p>
-            <pre><code>kb push """
-ChatGPT research dump — competitor memory tools:
-- Mem0: strong SDK, weaker shared-team KB story
-- Our wedge: shared kb_id + invite by Google email
-- Pricing hypothesis: free solo, paid seats for orgs
-Sources discussed: mem0.ai, Reddit MCP threads
-"""
-
-kb fetch What's our wedge vs Mem0 and pricing hypothesis?</code></pre>
+            <div class="demo-pane example-term">
+              <div class="demo-pane-bar">
+                <span class="demo-dots" aria-hidden="true"></span>
+                <span class="ex-term-label">ChatGPT → Cursor</span>
+              </div>
+              <pre class="demo-body" data-ex-body="1"></pre>
+            </div>
           </article>
-          <article>
+
+          <article class="example-panel" data-ex-panel="2">
             <h3>Claude design review → agency handoff</h3>
             <p>
               Client constraints come out of a Claude review. Push the full
               brief into a client KB. Anyone on the account fetches rules
               instead of reinventing the stack.
             </p>
-            <pre><code>kb create acme-rebrand "Acme Q2 site"
-
-kb push """
-Claude design review — Acme Q2:
-Must: custom CSS only, no Tailwind, WCAG AA
-Deploy: Vercel, preview URLs for stakeholders
-Tone: quiet, technical, no emoji in UI copy
-Out of scope: mobile app, CMS migration
-"""
-
-kb fetch What CSS and deploy constraints does Acme have?</code></pre>
+            <div class="demo-pane example-term">
+              <div class="demo-pane-bar">
+                <span class="demo-dots" aria-hidden="true"></span>
+                <span class="ex-term-label">Claude → team</span>
+              </div>
+              <pre class="demo-body" data-ex-body="2"></pre>
+            </div>
           </article>
         </div>
       </section>

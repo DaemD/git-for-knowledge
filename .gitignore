@@ -7,6 +7,9 @@ __pycache__/
 .ruff_cache/
 dist/
 build/
+promo/node_modules/
+promo/out/
+promo/.remotion/
 *.egg-info/
 data/memory_writes.db
 data/memory_writes.db-shm
