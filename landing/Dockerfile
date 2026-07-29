@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 
 WORKDIR /app
+
 COPY index.html styles.css app.js ./
 
 ENV PORT=8080
