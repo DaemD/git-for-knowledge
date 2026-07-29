@@ -1,8 +1,8 @@
-# Shared Knowledge Graph MCP
+# Graphly MCP
 
-Google-authenticated shared memory. Everyone shares **one** NAMS workspace.
-Each user owns logical **knowledge bases** addressed by `kb_id`. Username
-comes from OAuth (not a client-supplied field).
+Google-authenticated shared memory for AI assistants. Everyone shares **one**
+NAMS workspace. Each user owns logical **knowledge bases** addressed by
+`kb_id`. Username comes from OAuth (not a client-supplied field).
 
 ## Addressing
 
@@ -61,3 +61,7 @@ uvicorn app.server:app --reload
 Configure Auth0 (or compatible) with Google social login. Set
 `PUBLIC_BASE_URL` to the public MCP URL. Cursor callbacks must be Cursor
 localhost URLs, not your Railway `/mcp` path.
+
+## Landing
+
+Marketing site lives in [`landing/`](landing/) (separate Railway service).

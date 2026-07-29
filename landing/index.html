@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Graphly — Stop re-explaining your project to AI</title>
+    <meta
+      name="description"
+      content="Your AI forgets. Your teammates start from zero. Graphly is shared memory for Cursor, Claude, ChatGPT, and any MCP client — push once, fetch everywhere."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Share+Tech+Mono&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+
+    <header class="top">
+      <a class="brand" href="#">Graphly</a>
+      <nav class="top-nav">
+        <a href="#why">Why</a>
+        <a href="#examples">Examples</a>
+        <a href="#connect">Connect</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="brand-mark">Graphly</p>
+        <h1>Stop re-teaching<br />your AI every morning.</h1>
+        <p class="lede">
+          Every new chat starts blank. Every teammate re-explains the stack.
+          Graphly is shared knowledge for your AI tools — push a decision once,
+          fetch it in Cursor, Claude, ChatGPT, or Antigravity. Like git, for
+          what your team already knows.
+        </p>
+        <div class="cta-row">
+          <a class="btn primary" href="#connect">Connect your AI — free beta</a>
+          <a class="btn ghost" href="#examples">See real examples</a>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <pre class="hero-stream">
+<span class="dim">Monday · Cursor</span>
+<span class="dim">$</span> kb push Auth is Auth0 + Google. Never store passwords.
+<span class="ok">ok</span>  stored · startup-api · you
+
+<span class="dim">Thursday · Claude · new chat · zero context</span>
+<span class="dim">$</span> kb fetch How do we handle auth?
+<span class="ok">→</span>  Auth0 + Google. Never store passwords.
+
+<span class="dim">Same day · teammate joins</span>
+<span class="dim">$</span> kb invite alex@gmail.com write
+<span class="ok">ok</span>  they fetch the same answer — no Slack archaeology</pre>
+        </div>
+      </section>
+
+      <section class="strip" aria-label="Works with">
+        <p>One memory layer across the tools you already pay for</p>
+        <ul>
+          <li>Cursor</li>
+          <li>Antigravity</li>
+          <li>Claude Code</li>
+          <li>Claude</li>
+          <li>ChatGPT</li>
+        </ul>
+      </section>
+
+      <section id="why" class="section">
+        <p class="eyebrow">The cost of forgetting</p>
+        <h2>You’re paying for AI<br />that has amnesia.</h2>
+        <p class="section-lede">
+          Context windows reset. New chats wipe the slate. Docs rot in Notion.
+          Slack threads die. So you paste the same architecture note —
+          again — and burn tokens explaining what you already decided.
+        </p>
+        <div class="pain-grid">
+          <div>
+            <strong>Without Graphly</strong>
+            <p>
+              “We use Postgres, right?” — asked for the 4th time this week.
+              Junior joins, spends half a day reconstructing decisions from
+              old PRs. You switch from Cursor to Claude and start over.
+            </p>
+          </div>
+          <div>
+            <strong>With Graphly</strong>
+            <p>
+              Push the decision once. Any teammate, any assistant, any day —
+              <code>kb fetch</code> returns the same source of truth. Less
+              re-prompting. Fewer wrong assumptions. Faster shipping.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="eyebrow">Why teams switch</p>
+        <h2>Knowledge that survives<br />the chat.</h2>
+        <ol class="steps-plain">
+          <li>
+            <strong>Save hours every week</strong>
+            <span
+              >Stop copy-pasting “project context” into every new thread.
+              Your AI already knows the stack, constraints, and “why we did
+              it this way.”</span
+            >
+          </li>
+          <li>
+            <strong>Keep assistants in sync</strong>
+            <span
+              >Push in Cursor. Fetch in Claude Code or ChatGPT. One knowledge
+              base — not five conflicting mental models.</span
+            >
+          </li>
+          <li>
+            <strong>Onboard without a lecture</strong>
+            <span
+              >Invite a teammate. They sign in with Google, connect Graphly,
+              and ask the project what matters. No 45-minute voice call.</span
+            >
+          </li>
+          <li>
+            <strong>Feel like git — not another wiki</strong>
+            <span
+              >Type <code>kb push</code> / <code>kb fetch</code> in chat.
+              No new app to live in. No ceremony. Just durable memory where
+              you already work.</span
+            >
+          </li>
+        </ol>
+      </section>
+
+      <section id="examples" class="section">
+        <p class="eyebrow">Examples</p>
+        <h2>This is what<br />“buy it” looks like.</h2>
+        <p class="section-lede">
+          Real moments where Graphly pays for itself before lunch.
+        </p>
+
+        <div class="example-list">
+          <article>
+            <h3>Solo builder · multi-tool workflow</h3>
+            <p>
+              You prototype in Cursor, then ask Claude to write the README.
+              Without shared memory, Claude invents a different auth story.
+              With Graphly, it fetches what you already pushed — and stays
+              consistent.
+            </p>
+            <pre><code>kb push Public API is /v1. No GraphQL. Deadline Friday.
+kb fetch What endpoints and deadline matter this week?</code></pre>
+          </article>
+          <article>
+            <h3>Two-person startup · shared brain</h3>
+            <p>
+              You decided Neo4j for relationships at 11pm. Your cofounder
+              opens ChatGPT the next morning and asks “what DB?” — and gets
+              your decision, not a generic “use Postgres” guess.
+            </p>
+            <pre><code>kb invite cofounder@gmail.com write
+kb fetch Why Neo4j and not Postgres?</code></pre>
+          </article>
+          <article>
+            <h3>Agency / client work · less drift</h3>
+            <p>
+              Brand rules, forbidden libraries, deploy targets — pushed once
+              per client KB. Every agent on the account stops “helpfully”
+              rewriting the stack mid-sprint.
+            </p>
+            <pre><code>kb create acme-rebrand "Acme Q2 site"
+kb push No Tailwind. Custom CSS only. Deploy on Vercel.</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="commands" class="section">
+        <p class="eyebrow">Commands</p>
+        <h2>If you can type git,<br />you can use Graphly.</h2>
+        <p class="section-lede">
+          No dashboard homework. In chat, say what you mean — the model calls
+          the MCP tool. Push knowledge like you push code.
+        </p>
+
+        <div class="cmd-grid">
+          <div class="cmd-block">
+            <pre><code>kb list
+kb create &lt;id&gt; [name]
+kb use &lt;id&gt;
+kb push &lt;text&gt;
+kb fetch &lt;question&gt;
+kb invite &lt;email&gt; [read|write]
+kb members
+kb revoke &lt;email&gt;
+kb delete &lt;id&gt;</code></pre>
+          </div>
+          <div class="cmd-map">
+            <div><span>kb push</span><span>lock in a decision before you forget it</span></div>
+            <div><span>kb fetch</span><span>ask the project, not your memory</span></div>
+            <div><span>kb invite</span><span>give a teammate the same brain</span></div>
+            <div><span>kb list</span><span>see every knowledge base you own</span></div>
+            <div><span>kb create</span><span>one KB per product, client, or idea</span></div>
+            <div><span>kb members</span><span>know who can read or write</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section how">
+        <p class="eyebrow">Get value in minutes</p>
+        <h2>Connect once.<br />Never start from zero again.</h2>
+        <ol class="steps-plain">
+          <li>
+            <strong>Connect your AI</strong>
+            <span
+              >Add Graphly as an MCP server. Sign in with Google. Under two
+              minutes on Cursor.</span
+            >
+          </li>
+          <li>
+            <strong>Create a knowledge base</strong>
+            <span
+              ><code>kb create my-product</code> — one place for that
+              project’s durable truth.</span
+            >
+          </li>
+          <li>
+            <strong>Push what matters</strong>
+            <span
+              >Architecture, constraints, “never do X.” The stuff that
+              wastes an hour when the model invents it wrong.</span
+            >
+          </li>
+          <li>
+            <strong>Invite the people who ship with you</strong>
+            <span
+              >They connect the same MCP, join the KB, and stop pinging you
+              for context.</span
+            >
+          </li>
+        </ol>
+      </section>
+
+      <section id="connect" class="section connect">
+        <p class="eyebrow">Setup</p>
+        <h2>Connect your AI.<br />Start pushing today.</h2>
+        <p class="section-lede">
+          Same endpoint everywhere. Pick your client, paste the snippet, sign
+          in with Google — then run <code>kb push</code> on the first fact
+          you’re tired of repeating.
+        </p>
+
+        <div class="tabs" role="tablist" aria-label="AI clients">
+          <button class="tab active" role="tab" aria-selected="true" data-client="cursor">
+            Cursor
+          </button>
+          <button class="tab" role="tab" aria-selected="false" data-client="antigravity">
+            Antigravity
+          </button>
+          <button class="tab" role="tab" aria-selected="false" data-client="claude-code">
+            Claude Code
+          </button>
+          <button class="tab" role="tab" aria-selected="false" data-client="claude">
+            Claude
+          </button>
+          <button class="tab" role="tab" aria-selected="false" data-client="chatgpt">
+            ChatGPT
+          </button>
+        </div>
+
+        <article class="panel active" data-panel="cursor">
+          <ol class="install-steps">
+            <li>Open Cursor Settings → MCP, or edit <code>.cursor/mcp.json</code>.</li>
+            <li>Paste the snippet below and save.</li>
+            <li>Refresh the server, then sign in with Google when prompted.</li>
+            <li>In chat: <code>kb create my-project</code> then <code>kb push …</code></li>
+          </ol>
+          <div class="snippet">
+            <div class="snippet-bar">
+              <span>.cursor/mcp.json</span>
+              <button type="button" class="copy" data-copy="cursor">Copy</button>
+            </div>
+            <pre><code id="snippet-cursor">{
+  "mcpServers": {
+    "graphly": {
+      "type": "http",
+      "url": "https://dev-production-c1ec.up.railway.app/mcp"
+    }
+  }
+}</code></pre>
+          </div>
+        </article>
+
+        <article class="panel" data-panel="antigravity">
+          <ol class="install-steps">
+            <li>In the Agent panel, open <strong>…</strong> → MCP Servers → Manage MCP Servers.</li>
+            <li>Choose View raw config to open <code>mcp_config.json</code>.</li>
+            <li>Add the snippet. Use <code>serverUrl</code> (Antigravity’s HTTP field).</li>
+            <li>Refresh MCP, sign in with Google if prompted, then <code>kb list</code>.</li>
+          </ol>
+          <div class="snippet">
+            <div class="snippet-bar">
+              <span>~/.gemini/antigravity/mcp_config.json</span>
+              <button type="button" class="copy" data-copy="antigravity">Copy</button>
+            </div>
+            <pre><code id="snippet-antigravity">{
+  "mcpServers": {
+    "graphly": {
+      "serverUrl": "https://dev-production-c1ec.up.railway.app/mcp"
+    }
+  }
+}</code></pre>
+          </div>
+        </article>
+
+        <article class="panel" data-panel="claude-code">
+          <ol class="install-steps">
+            <li>Run the command below in your terminal.</li>
+            <li>Inside Claude Code, run <code>/mcp</code> and complete Google sign-in.</li>
+            <li>Confirm Graphly tools appear, then try <code>kb list</code>.</li>
+          </ol>
+          <div class="snippet">
+            <div class="snippet-bar">
+              <span>terminal</span>
+              <button type="button" class="copy" data-copy="claude-code">Copy</button>
+            </div>
+            <pre><code id="snippet-claude-code">claude mcp add --transport http graphly \
+  https://dev-production-c1ec.up.railway.app/mcp</code></pre>
+          </div>
+        </article>
+
+        <article class="panel" data-panel="claude">
+          <ol class="install-steps">
+            <li>Open Claude → Settings → Connectors (or MCP servers).</li>
+            <li>Add a custom connector with the URL below.</li>
+            <li>Authorize with Google when Claude opens the login flow.</li>
+            <li>Start a chat and type <code>kb list</code>.</li>
+          </ol>
+          <div class="snippet">
+            <div class="snippet-bar">
+              <span>MCP server URL</span>
+              <button type="button" class="copy" data-copy="claude">Copy</button>
+            </div>
+            <pre><code id="snippet-claude">https://dev-production-c1ec.up.railway.app/mcp</code></pre>
+          </div>
+        </article>
+
+        <article class="panel" data-panel="chatgpt">
+          <ol class="install-steps">
+            <li>ChatGPT Settings → Connectors → enable Developer Mode (where available).</li>
+            <li>Add a custom connector. Name it Graphly. Paste the MCP URL.</li>
+            <li>Choose OAuth, then sign in with Google.</li>
+            <li>In a chat, enable the connector and try <code>kb list</code>.</li>
+          </ol>
+          <p class="note">
+            Custom connectors may require a paid ChatGPT plan with Developer Mode.
+            Your Auth0 app must allow ChatGPT’s OAuth callback URL.
+          </p>
+          <div class="snippet">
+            <div class="snippet-bar">
+              <span>MCP server URL</span>
+              <button type="button" class="copy" data-copy="chatgpt">Copy</button>
+            </div>
+            <pre><code id="snippet-chatgpt">https://dev-production-c1ec.up.railway.app/mcp</code></pre>
+          </div>
+        </article>
+      </section>
+
+      <section class="section closing">
+        <h2>Your next chat<br />doesn’t have to be blank.</h2>
+        <p class="section-lede">
+          Connect Graphly once. Push the facts you’re tired of repeating.
+          Tomorrow’s AI — and your teammates — already know.
+        </p>
+        <a class="btn primary" href="#connect">Connect your AI — free beta</a>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <span>Graphly</span>
+      <span>Early beta · Google sign-in · shared knowledge for MCP</span>
+    </footer>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

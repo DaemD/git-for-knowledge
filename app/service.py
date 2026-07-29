@@ -111,7 +111,7 @@ class KnowledgeService:
         conversation_id = await self._store.create_conversation(
             label,
             metadata={
-                "purpose": "shared-knowledge-graph",
+                "purpose": "graphly",
                 "kb_id": kb_id,
                 "kb_name": label,
                 "owner_sub": user_id,

@@ -3,7 +3,8 @@
 ## How it works
 
 These are **not** terminal commands. You type them in **AI chat** (Cursor,
-Claude, etc.). The model reads what you typed and calls the matching MCP tool.
+Claude, etc.). The model reads what you typed and calls the matching Graphly
+MCP tool.
 
 Three ways to invoke:
 

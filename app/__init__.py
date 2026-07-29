@@ -1,3 +1,3 @@
-"""Shared knowledge graph MCP service."""
+"""Graphly MCP service."""
 
 __version__ = "0.1.0"

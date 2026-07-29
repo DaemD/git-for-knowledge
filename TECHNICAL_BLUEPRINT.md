@@ -2,10 +2,10 @@
 
 ## Model
 
-One shared NAMS workspace. Logical knowledge bases are `(auth_user, kb_id)` →
-NAMS conversation. Clients pass `kb_id` on every `kb_push` / `kb_fetch`.
-Username is derived from the verified OAuth identity, never from an untrusted
-payload field.
+Graphly: one shared NAMS workspace. Logical knowledge bases are
+`(auth_user, kb_id)` → NAMS conversation. Clients pass `kb_id` on every
+`kb_push` / `kb_fetch`. Username is derived from the verified OAuth identity,
+never from an untrusted payload field.
 
 ## Tools
 

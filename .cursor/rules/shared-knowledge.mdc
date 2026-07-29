@@ -1,11 +1,11 @@
 ---
-description: Shared Knowledge MCP — git-style kb commands
+description: Graphly MCP — git-style kb commands
 alwaysApply: true
 ---
 
-# Shared knowledge (`kb` commands)
+# Graphly (`kb` commands)
 
-Users type git-style commands in chat. Call the matching MCP tool.
+Users type git-style commands in chat. Call the matching Graphly MCP tool.
 
 ## Vocabulary
 

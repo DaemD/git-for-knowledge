@@ -1,6 +1,6 @@
-# kb — shared knowledge commands
+# kb — Graphly commands
 
-Users type git-style commands in chat. Map them to Shared Knowledge MCP tools.
+Users type git-style commands in chat. Map them to Graphly MCP tools.
 
 ## Command → tool
 
