@@ -13,6 +13,7 @@ async def test_public_mcp_surface_uses_kb_id_tools() -> None:
         "kb_invite",
         "kb_members",
         "kb_revoke",
+        "kb_upgrade",
     ]
 
 

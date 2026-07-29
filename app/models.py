@@ -116,3 +116,11 @@ class DeleteKnowledgeBaseResult(BaseModel):
     kb_id: str
     deleted: bool
     nams_cleared: bool = False
+
+
+class UpgradeResult(BaseModel):
+    checkout_url: str | None = None
+    plan_status: str
+    trial_ends_at: str | None = None
+    entitled: bool
+    message: str

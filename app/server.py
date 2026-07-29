@@ -7,7 +7,8 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import AnyHttpUrl
 from starlette.applications import Starlette
-from starlette.responses import JSONResponse
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 from starlette.routing import Mount, Route
 
 from app.auth import build_token_verifier, current_user_subject
@@ -22,6 +23,7 @@ from app.models import (
     RecallResult,
     RememberResult,
     RevokeKnowledgeBaseAccessResult,
+    UpgradeResult,
 )
 from app.nams import NamsStore
 from app.oauth_proxy import (
@@ -31,6 +33,11 @@ from app.oauth_proxy import (
     oauth_token,
 )
 from app.service import KnowledgeService
+from app.stripe_billing import (
+    BillingNotConfiguredError,
+    construct_webhook_event,
+    handle_stripe_webhook_event,
+)
 
 
 class Runtime:
@@ -51,9 +58,10 @@ def _build_mcp(settings: Settings) -> FastMCP:
             "grphly is persistent shared memory for Google-authenticated "
             "users. Logical knowledge bases are addressed by kb_id. "
             "Tools use git-style names: kb_list, kb_create, kb_push, kb_fetch, "
-            "kb_invite, kb_members, kb_revoke, kb_delete. "
+            "kb_invite, kb_members, kb_revoke, kb_delete, kb_upgrade. "
             "When the user says 'kb list' / 'kb push' / 'kb fetch' etc. in chat, "
             "call the matching grphly tool. Prefer kb_id from the project when omitted. "
+            "New users get a 14-day trial; after that call kb_upgrade for Stripe Checkout. "
             "Identity comes from OAuth (never a client-supplied username). "
             "Entity search remains workspace-wide soft isolation."
         ),
@@ -187,6 +195,16 @@ async def kb_revoke(
     return await _service().revoke_knowledge_base_access(user.id, kb_id, email)
 
 
+@mcp.tool()
+async def kb_upgrade() -> UpgradeResult:
+    """kb upgrade — open Stripe Checkout to subscribe after the free trial.
+
+    Always available (even when trial ended). Returns a checkout_url to open.
+    """
+    user = await _authenticated_user()
+    return await _service().create_upgrade_checkout(user.id)
+
+
 async def health(_: Any) -> JSONResponse:
     return JSONResponse(
         {
@@ -198,6 +216,23 @@ async def health(_: Any) -> JSONResponse:
             "tenancy": "logical-kb-id",
         }
     )
+
+
+async def billing_webhook(request: Request) -> Response:
+    settings = get_settings()
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature", "")
+    try:
+        event = construct_webhook_event(settings, payload, signature)
+    except BillingNotConfiguredError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=503)
+    except Exception as exc:  # noqa: BLE001 — Stripe signature errors
+        return JSONResponse({"error": str(exc)}, status_code=400)
+
+    if runtime.control is None:
+        return JSONResponse({"error": "service starting"}, status_code=503)
+    await handle_stripe_webhook_event(runtime.control, event)
+    return JSONResponse({"received": True})
 
 
 @contextlib.asynccontextmanager
@@ -226,6 +261,15 @@ mcp_http_app = mcp.streamable_http_app()
 app = Starlette(
     routes=[
         Route("/health", health, methods=["GET"]),
+        Route("/authorize", oauth_authorize, methods=["GET"]),
+        Route("/token", oauth_token, methods=["POST"]),
+        Route("/register", oauth_register, methods=["POST"]),
+        Route(
+            "/.well-known/oauth-authorization-server",
+            oauth_authorization_server_metadata,
+            methods=["GET"],
+        ),
+        Route("/billing/webhook", billing_webhook, methods=["POST"]),
         Mount("/", app=mcp_http_app),
     ],
     lifespan=lifespan,

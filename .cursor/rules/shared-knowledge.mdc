@@ -20,6 +20,7 @@ Users type git-style commands in chat. Call the matching grphly MCP tool.
 | `kb members` | `kb_members` |
 | `kb revoke <email>` | `kb_revoke` |
 | `kb delete <id>` | `kb_delete` |
+| `kb upgrade` | `kb_upgrade` (Stripe Checkout; not blocked after trial) |
 
 Also accept natural language that clearly means the same thing
 (e.g. "push this to the knowledge base", "fetch what DB we use").
@@ -29,6 +30,7 @@ Also accept natural language that clearly means the same thing
 - Prefer `kb_id` from `.cursor/kb-id`.
 - If missing and required, call `kb_list` or ask.
 - `kb_push` always needs a fresh UUID `idempotency_key`.
+- New users get a 14-day trial; if tools say trial ended, call `kb_upgrade`.
 
 ## Auto behavior
 

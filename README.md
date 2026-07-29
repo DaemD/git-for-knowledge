@@ -29,8 +29,11 @@ Entity search remains workspace-wide soft isolation inside Neo4j.
 | `kb_invite(kb_id, email, role?)` | Share by Google email |
 | `kb_members(kb_id)` | List members / invites |
 | `kb_revoke(kb_id, email)` | Remove access |
+| `kb_upgrade()` | Stripe Checkout link (after trial) |
 
 Invite emails are optional (`INVITE_EMAIL_ENABLED` + Resend).
+
+Billing: 14-day trial from first login, then `$19/mo` via Stripe (`STRIPE_*` env + webhook `/billing/webhook`).
 
 ## Easy commands (Cursor chat)
 

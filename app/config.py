@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     email_from: str = ""
     invite_docs_url: str = ""
 
+    # Stripe billing (optional until keys are set).
+    stripe_secret_key: SecretStr | None = None
+    stripe_webhook_secret: SecretStr | None = None
+    stripe_price_id: str = ""
+    billing_landing_url: str = ""
+    trial_days: int = Field(default=14, ge=1, le=365)
+
     @property
     def required_scopes(self) -> list[str]:
         return [scope for scope in self.oauth_required_scopes.split() if scope]
@@ -61,6 +68,19 @@ class Settings(BaseSettings):
             raise ValueError("oauth_issuer_url is required when auth is enabled")
         issuer = str(self.oauth_issuer_url).rstrip("/")
         return f"{issuer}/.well-known/jwks.json"
+
+    @property
+    def billing_upgrade_url(self) -> str:
+        base = (self.billing_landing_url or str(self.public_base_url)).rstrip("/")
+        return f"{base}/#pricing"
+
+    @property
+    def stripe_configured(self) -> bool:
+        return bool(
+            self.stripe_secret_key
+            and self.stripe_secret_key.get_secret_value()
+            and self.stripe_price_id.strip()
+        )
 
     @model_validator(mode="after")
     def validate_auth_settings(self) -> Settings:

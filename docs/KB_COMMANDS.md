@@ -26,6 +26,7 @@ kb invite <email> [read|write]
 kb members
 kb revoke <email>
 kb delete <kb_id>
+kb upgrade
 ```
 
 ## Like git
@@ -41,6 +42,7 @@ kb delete <kb_id>
 | | `kb members` | `kb_members` |
 | | `kb revoke alice@gmail.com` | `kb_revoke` |
 | | `kb delete my-project` | `kb_delete` |
+| subscribe | `kb upgrade` | `kb_upgrade` |
 
 ## Examples
 

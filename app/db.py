@@ -18,7 +18,12 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT,
     display_name TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    trial_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    plan_status TEXT NOT NULL DEFAULT 'trial',
+    stripe_customer_id TEXT,
+    stripe_subscription_id TEXT,
+    plan_period_end TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS graphs (
@@ -90,6 +95,18 @@ class UserRecord:
     display_name: str | None
     created_at: datetime
     updated_at: datetime
+    trial_started_at: datetime | None = None
+    plan_status: str = "trial"
+    stripe_customer_id: str | None = None
+    stripe_subscription_id: str | None = None
+    plan_period_end: datetime | None = None
+
+
+USER_COLUMNS = (
+    "id, email, display_name, created_at, updated_at, "
+    "trial_started_at, plan_status, stripe_customer_id, "
+    "stripe_subscription_id, plan_period_end"
+)
 
 
 @dataclass(frozen=True)
@@ -239,6 +256,19 @@ class ControlStore(Protocol):
         graph_id: str,
         invitee_email: str,
     ) -> bool: ...
+    async def apply_stripe_subscription(
+        self,
+        *,
+        user_id: str | None = None,
+        stripe_customer_id: str | None = None,
+        stripe_subscription_id: str | None = None,
+        plan_status: str,
+        plan_period_end: datetime | None = None,
+    ) -> UserRecord | None: ...
+    async def get_user_by_stripe_customer(
+        self,
+        stripe_customer_id: str,
+    ) -> UserRecord | None: ...
 
 
 class PostgresControlStore:
@@ -265,6 +295,50 @@ class PostgresControlStore:
                 WHERE kb_id IS NULL OR kb_id = ''
                 """
             )
+            await conn.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ
+                """
+            )
+            await conn.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS plan_status TEXT
+                """
+            )
+            await conn.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT
+                """
+            )
+            await conn.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT
+                """
+            )
+            await conn.execute(
+                """
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS plan_period_end TIMESTAMPTZ
+                """
+            )
+            await conn.execute(
+                """
+                UPDATE users
+                SET trial_started_at = COALESCE(trial_started_at, created_at, NOW())
+                WHERE trial_started_at IS NULL
+                """
+            )
+            await conn.execute(
+                """
+                UPDATE users
+                SET plan_status = COALESCE(NULLIF(plan_status, ''), 'trial')
+                WHERE plan_status IS NULL OR plan_status = ''
+                """
+            )
 
     async def close(self) -> None:
         if self._pool is not None:
@@ -286,16 +360,19 @@ class PostgresControlStore:
         now = utcnow()
         async with self._pool_required().acquire() as conn:
             row = await conn.fetchrow(
-                """
-                INSERT INTO users (id, email, display_name, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $4)
+                f"""
+                INSERT INTO users (
+                    id, email, display_name, created_at, updated_at,
+                    trial_started_at, plan_status
+                )
+                VALUES ($1, $2, $3, $4, $4, $4, 'trial')
                 ON CONFLICT (id) DO UPDATE SET
                     email = COALESCE(EXCLUDED.email, users.email),
                     display_name = COALESCE(
                         EXCLUDED.display_name, users.display_name
                     ),
                     updated_at = EXCLUDED.updated_at
-                RETURNING id, email, display_name, created_at, updated_at
+                RETURNING {USER_COLUMNS}
                 """,
                 subject,
                 email,
@@ -307,8 +384,8 @@ class PostgresControlStore:
     async def get_user(self, user_id: str) -> UserRecord | None:
         async with self._pool_required().acquire() as conn:
             row = await conn.fetchrow(
-                """
-                SELECT id, email, display_name, created_at, updated_at
+                f"""
+                SELECT {USER_COLUMNS}
                 FROM users
                 WHERE id = $1
                 """,
@@ -544,13 +621,92 @@ class PostgresControlStore:
         normalized = _normalize_email(email)
         async with self._pool_required().acquire() as conn:
             row = await conn.fetchrow(
-                """
-                SELECT id, email, display_name, created_at, updated_at
+                f"""
+                SELECT {USER_COLUMNS}
                 FROM users
                 WHERE LOWER(email) = $1
                 """,
                 normalized,
             )
+        return _user_from_row(row) if row else None
+
+    async def get_user_by_stripe_customer(
+        self,
+        stripe_customer_id: str,
+    ) -> UserRecord | None:
+        async with self._pool_required().acquire() as conn:
+            row = await conn.fetchrow(
+                f"""
+                SELECT {USER_COLUMNS}
+                FROM users
+                WHERE stripe_customer_id = $1
+                """,
+                stripe_customer_id,
+            )
+        return _user_from_row(row) if row else None
+
+    async def apply_stripe_subscription(
+        self,
+        *,
+        user_id: str | None = None,
+        stripe_customer_id: str | None = None,
+        stripe_subscription_id: str | None = None,
+        plan_status: str,
+        plan_period_end: datetime | None = None,
+    ) -> UserRecord | None:
+        async with self._pool_required().acquire() as conn:
+            row = None
+            if user_id:
+                row = await conn.fetchrow(
+                    f"""
+                    UPDATE users SET
+                        plan_status = $2,
+                        stripe_customer_id = COALESCE($3, stripe_customer_id),
+                        stripe_subscription_id = COALESCE($4, stripe_subscription_id),
+                        plan_period_end = COALESCE($5, plan_period_end),
+                        updated_at = $6
+                    WHERE id = $1
+                    RETURNING {USER_COLUMNS}
+                    """,
+                    user_id,
+                    plan_status,
+                    stripe_customer_id,
+                    stripe_subscription_id,
+                    plan_period_end,
+                    utcnow(),
+                )
+            elif stripe_customer_id:
+                row = await conn.fetchrow(
+                    f"""
+                    UPDATE users SET
+                        plan_status = $2,
+                        stripe_subscription_id = COALESCE($3, stripe_subscription_id),
+                        plan_period_end = COALESCE($4, plan_period_end),
+                        updated_at = $5
+                    WHERE stripe_customer_id = $1
+                    RETURNING {USER_COLUMNS}
+                    """,
+                    stripe_customer_id,
+                    plan_status,
+                    stripe_subscription_id,
+                    plan_period_end,
+                    utcnow(),
+                )
+            elif stripe_subscription_id:
+                row = await conn.fetchrow(
+                    f"""
+                    UPDATE users SET
+                        plan_status = $2,
+                        plan_period_end = COALESCE($3, plan_period_end),
+                        updated_at = $4
+                    WHERE stripe_subscription_id = $1
+                    RETURNING {USER_COLUMNS}
+                    """,
+                    stripe_subscription_id,
+                    plan_status,
+                    plan_period_end,
+                    utcnow(),
+                )
         return _user_from_row(row) if row else None
 
     async def list_accessible_graphs(self, user_id: str) -> list[AccessibleGraph]:
@@ -820,6 +976,8 @@ class InMemoryControlStore:
                 display_name=display_name,
                 created_at=now,
                 updated_at=now,
+                trial_started_at=now,
+                plan_status="trial",
             )
         else:
             record = UserRecord(
@@ -832,12 +990,68 @@ class InMemoryControlStore:
                 ),
                 created_at=existing.created_at,
                 updated_at=now,
+                trial_started_at=existing.trial_started_at or existing.created_at,
+                plan_status=existing.plan_status or "trial",
+                stripe_customer_id=existing.stripe_customer_id,
+                stripe_subscription_id=existing.stripe_subscription_id,
+                plan_period_end=existing.plan_period_end,
             )
         self.users[subject] = record
         return record
 
     async def get_user(self, user_id: str) -> UserRecord | None:
         return self.users.get(user_id)
+
+    async def get_user_by_stripe_customer(
+        self,
+        stripe_customer_id: str,
+    ) -> UserRecord | None:
+        for user in self.users.values():
+            if user.stripe_customer_id == stripe_customer_id:
+                return user
+        return None
+
+    async def apply_stripe_subscription(
+        self,
+        *,
+        user_id: str | None = None,
+        stripe_customer_id: str | None = None,
+        stripe_subscription_id: str | None = None,
+        plan_status: str,
+        plan_period_end: datetime | None = None,
+    ) -> UserRecord | None:
+        target: UserRecord | None = None
+        if user_id:
+            target = self.users.get(user_id)
+        elif stripe_customer_id:
+            target = await self.get_user_by_stripe_customer(stripe_customer_id)
+        elif stripe_subscription_id:
+            for user in self.users.values():
+                if user.stripe_subscription_id == stripe_subscription_id:
+                    target = user
+                    break
+        if target is None:
+            return None
+        updated = UserRecord(
+            id=target.id,
+            email=target.email,
+            display_name=target.display_name,
+            created_at=target.created_at,
+            updated_at=utcnow(),
+            trial_started_at=target.trial_started_at,
+            plan_status=plan_status,
+            stripe_customer_id=stripe_customer_id or target.stripe_customer_id,
+            stripe_subscription_id=(
+                stripe_subscription_id or target.stripe_subscription_id
+            ),
+            plan_period_end=(
+                plan_period_end
+                if plan_period_end is not None
+                else target.plan_period_end
+            ),
+        )
+        self.users[target.id] = updated
+        return updated
 
     async def list_graphs(self, user_id: str) -> list[GraphRecord]:
         return sorted(
@@ -1197,12 +1411,23 @@ def _normalize_database_url(url: str) -> str:
 
 
 def _user_from_row(row: Any) -> UserRecord:
+    def _get(key: str, default: Any = None) -> Any:
+        try:
+            return row[key]
+        except (KeyError, IndexError):
+            return default
+
     return UserRecord(
         id=row["id"],
         email=row["email"],
         display_name=row["display_name"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
+        trial_started_at=_get("trial_started_at"),
+        plan_status=str(_get("plan_status") or "trial"),
+        stripe_customer_id=_get("stripe_customer_id"),
+        stripe_subscription_id=_get("stripe_subscription_id"),
+        plan_period_end=_get("plan_period_end"),
     )
 
 

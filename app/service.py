@@ -9,6 +9,7 @@ from typing import Any
 
 from app.db import ControlStore, GraphRecord, MemoryWrite, UserRecord, hash_content
 from app.auth import current_access_token, resolve_user_profile
+from app.billing import evaluate_entitlement, require_entitlement
 from app.config import get_settings
 from app.email_service import send_kb_invite_email
 from app.memory_meta import (
@@ -33,8 +34,13 @@ from app.models import (
     RecallResult,
     RememberResult,
     RevokeKnowledgeBaseAccessResult,
+    UpgradeResult,
 )
 from app.nams import NamsStore
+from app.stripe_billing import (
+    BillingNotConfiguredError,
+    create_checkout_session,
+)
 from app.utils import stable_id
 
 
@@ -84,7 +90,7 @@ class KnowledgeService:
         return re.sub(r"[^A-Za-z0-9_-]+", "-", user.id)[:64] or "user"
 
     async def list_knowledge_bases(self, user_id: str) -> KnowledgeBaseListResult:
-        user = await self._require_user(user_id)
+        user = await self._require_entitled_user(user_id)
         graphs = await self._control.list_accessible_graphs(user_id)
         return KnowledgeBaseListResult(
             username=self.username_for(user),
@@ -100,7 +106,7 @@ class KnowledgeService:
         kb_id: str,
         name: str | None = None,
     ) -> CreateKnowledgeBaseResult:
-        user = await self._require_user(user_id)
+        user = await self._require_entitled_user(user_id)
         kb_id = validate_kb_id(kb_id)
         label = (name or kb_id).strip()
         if not label:
@@ -138,6 +144,7 @@ class KnowledgeService:
         email: str,
         role: str = "write",
     ) -> InviteToKnowledgeBaseResult:
+        await self._require_entitled_user(user_id)
         graph = await self._require_owned_kb(user_id, kb_id)
         invitee_email = validate_email(email)
         member_role = validate_member_role(role)
@@ -186,6 +193,7 @@ class KnowledgeService:
         user_id: str,
         kb_id: str,
     ) -> DeleteKnowledgeBaseResult:
+        await self._require_entitled_user(user_id)
         graph = await self._require_owned_kb(user_id, kb_id)
         nams_cleared = False
         try:
@@ -209,6 +217,7 @@ class KnowledgeService:
         user_id: str,
         kb_id: str,
     ) -> KnowledgeBaseMembersResult:
+        await self._require_entitled_user(user_id)
         graph = await self._require_owned_kb(user_id, kb_id)
         owner = await self._require_user(graph.user_id)
         members = [
@@ -245,6 +254,7 @@ class KnowledgeService:
         kb_id: str,
         email: str,
     ) -> RevokeKnowledgeBaseAccessResult:
+        await self._require_entitled_user(user_id)
         graph = await self._require_owned_kb(user_id, kb_id)
         invitee_email = validate_email(email)
         revoked = await self._control.revoke_kb_access(graph.id, invitee_email)
@@ -267,7 +277,7 @@ class KnowledgeService:
         if not text:
             raise ValueError("Memory text cannot be empty")
 
-        user = await self._require_user(user_id)
+        user = await self._require_entitled_user(user_id)
         username = self.username_for(user)
         graph = await self._require_kb_access(user_id, kb_id, need_write=True)
         client_id = self._client_id_or_default(client_id)
@@ -344,7 +354,7 @@ class KnowledgeService:
             raise ValueError("Recall question cannot be empty")
         limit = max(1, min(limit, 20))
 
-        user = await self._require_user(user_id)
+        user = await self._require_entitled_user(user_id)
         username = self.username_for(user)
         graph = await self._require_kb_access(user_id, kb_id, need_write=False)
         conversation_id = graph.nams_conversation_id
@@ -454,10 +464,53 @@ class KnowledgeService:
             kb_id=graph.kb_id,
         )
 
+    async def create_upgrade_checkout(self, user_id: str) -> UpgradeResult:
+        """Create Stripe Checkout for the authenticated user (not entitlement-gated)."""
+        user = await self._require_user(user_id)
+        settings = get_settings()
+        entitlement = evaluate_entitlement(user, settings)
+        trial_ends = (
+            entitlement.trial_ends_at.isoformat()
+            if entitlement.trial_ends_at
+            else None
+        )
+        if entitlement.allowed and user.plan_status == "active":
+            return UpgradeResult(
+                checkout_url=None,
+                plan_status=user.plan_status,
+                trial_ends_at=trial_ends,
+                entitled=True,
+                message="Subscription already active.",
+            )
+        try:
+            url = await create_checkout_session(settings, user)
+        except BillingNotConfiguredError as exc:
+            return UpgradeResult(
+                checkout_url=None,
+                plan_status=user.plan_status,
+                trial_ends_at=trial_ends,
+                entitled=entitlement.allowed,
+                message=(
+                    f"{exc} Visit {settings.billing_upgrade_url} for pricing."
+                ),
+            )
+        return UpgradeResult(
+            checkout_url=url,
+            plan_status=user.plan_status,
+            trial_ends_at=trial_ends,
+            entitled=entitlement.allowed,
+            message="Open this Stripe Checkout URL to subscribe.",
+        )
+
     async def _require_user(self, user_id: str) -> UserRecord:
         user = await self._control.get_user(user_id)
         if user is None:
             raise PermissionError("Authenticated user not found")
+        return user
+
+    async def _require_entitled_user(self, user_id: str) -> UserRecord:
+        user = await self._require_user(user_id)
+        require_entitlement(user, get_settings())
         return user
 
     @staticmethod
