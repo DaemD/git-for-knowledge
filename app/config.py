@@ -49,10 +49,11 @@ class Settings(BaseSettings):
     email_from: str = ""
     invite_docs_url: str = ""
 
-    # Stripe billing (optional until keys are set).
-    stripe_secret_key: SecretStr | None = None
-    stripe_webhook_secret: SecretStr | None = None
-    stripe_price_id: str = ""
+    # Lemon Squeezy billing (optional until keys are set).
+    lemon_squeezy_api_key: SecretStr | None = None
+    lemon_squeezy_webhook_secret: SecretStr | None = None
+    lemon_squeezy_store_id: str = ""
+    lemon_squeezy_variant_id: str = ""
     billing_landing_url: str = ""
     trial_days: int = Field(default=14, ge=1, le=365)
 
@@ -75,11 +76,12 @@ class Settings(BaseSettings):
         return f"{base}/#pricing"
 
     @property
-    def stripe_configured(self) -> bool:
+    def lemon_configured(self) -> bool:
         return bool(
-            self.stripe_secret_key
-            and self.stripe_secret_key.get_secret_value()
-            and self.stripe_price_id.strip()
+            self.lemon_squeezy_api_key
+            and self.lemon_squeezy_api_key.get_secret_value()
+            and str(self.lemon_squeezy_store_id).strip()
+            and str(self.lemon_squeezy_variant_id).strip()
         )
 
     @model_validator(mode="after")

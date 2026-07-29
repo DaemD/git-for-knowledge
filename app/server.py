@@ -1,4 +1,5 @@
 import contextlib
+import json
 from typing import Any
 
 import uvicorn
@@ -33,10 +34,10 @@ from app.oauth_proxy import (
     oauth_token,
 )
 from app.service import KnowledgeService
-from app.stripe_billing import (
+from app.lemon_billing import (
     BillingNotConfiguredError,
-    construct_webhook_event,
-    handle_stripe_webhook_event,
+    handle_lemon_webhook_event,
+    verify_webhook_signature,
 )
 
 
@@ -61,7 +62,7 @@ def _build_mcp(settings: Settings) -> FastMCP:
             "kb_invite, kb_members, kb_revoke, kb_delete, kb_upgrade. "
             "When the user says 'kb list' / 'kb push' / 'kb fetch' etc. in chat, "
             "call the matching grphly tool. Prefer kb_id from the project when omitted. "
-            "New users get a 14-day trial; after that call kb_upgrade for Stripe Checkout. "
+            "New users get a 14-day trial; after that call kb_upgrade for Lemon Squeezy checkout. "
             "Identity comes from OAuth (never a client-supplied username). "
             "Entity search remains workspace-wide soft isolation."
         ),
@@ -197,7 +198,7 @@ async def kb_revoke(
 
 @mcp.tool()
 async def kb_upgrade() -> UpgradeResult:
-    """kb upgrade — open Stripe Checkout to subscribe after the free trial.
+    """kb upgrade — open Lemon Squeezy checkout to subscribe after the free trial.
 
     Always available (even when trial ended). Returns a checkout_url to open.
     """
@@ -221,17 +222,20 @@ async def health(_: Any) -> JSONResponse:
 async def billing_webhook(request: Request) -> Response:
     settings = get_settings()
     payload = await request.body()
-    signature = request.headers.get("stripe-signature", "")
+    signature = request.headers.get("x-signature", "")
     try:
-        event = construct_webhook_event(settings, payload, signature)
+        verify_webhook_signature(settings, payload, signature)
+        event = json.loads(payload.decode("utf-8"))
     except BillingNotConfiguredError as exc:
         return JSONResponse({"error": str(exc)}, status_code=503)
-    except Exception as exc:  # noqa: BLE001 — Stripe signature errors
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except Exception as exc:  # noqa: BLE001
         return JSONResponse({"error": str(exc)}, status_code=400)
 
     if runtime.control is None:
         return JSONResponse({"error": "service starting"}, status_code=503)
-    await handle_stripe_webhook_event(runtime.control, event)
+    await handle_lemon_webhook_event(runtime.control, event)
     return JSONResponse({"received": True})
 
 

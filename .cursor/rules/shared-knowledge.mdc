@@ -20,7 +20,7 @@ Users type git-style commands in chat. Call the matching grphly MCP tool.
 | `kb members` | `kb_members` |
 | `kb revoke <email>` | `kb_revoke` |
 | `kb delete <id>` | `kb_delete` |
-| `kb upgrade` | `kb_upgrade` (Stripe Checkout; not blocked after trial) |
+| `kb upgrade` | `kb_upgrade` (Lemon Squeezy checkout; not blocked after trial) |
 
 Also accept natural language that clearly means the same thing
 (e.g. "push this to the knowledge base", "fetch what DB we use").

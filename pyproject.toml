@@ -12,7 +12,7 @@ dependencies = [
     "pydantic-settings",
     "PyJWT[crypto]>=2.8",
     "starlette",
-    "stripe>=11,<13",
+    "uvicorn[standard]",
 ]
 
 [project.optional-dependencies]

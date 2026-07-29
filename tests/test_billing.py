@@ -1,12 +1,18 @@
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
+
+import hashlib
+import hmac
 
 import pytest
 
 from app.billing import evaluate_entitlement, require_entitlement
 from app.config import Settings
 from app.db import InMemoryControlStore, UserRecord, utcnow
+from app.lemon_billing import (
+    handle_lemon_webhook_event,
+    verify_webhook_signature,
+)
 from app.service import KnowledgeService
-from app.stripe_billing import handle_stripe_webhook_event
 from tests.test_service import FakeNamsStore
 
 
@@ -18,7 +24,8 @@ def _settings(**overrides) -> Settings:
         public_base_url="http://test.local",
         trial_days=14,
         billing_landing_url="https://landing.test",
-        stripe_price_id="",
+        lemon_squeezy_store_id="",
+        lemon_squeezy_variant_id="",
     )
     base.update(overrides)
     return Settings(**base)
@@ -75,11 +82,19 @@ def test_require_entitlement_raises() -> None:
         require_entitlement(user, _settings())
 
 
+def test_lemon_webhook_signature() -> None:
+    settings = _settings(lemon_squeezy_webhook_secret="whsec_test")
+    payload = b'{"meta":{"event_name":"subscription_created"}}'
+    sig = hmac.new(b"whsec_test", payload, hashlib.sha256).hexdigest()
+    verify_webhook_signature(settings, payload, sig)
+    with pytest.raises(ValueError):
+        verify_webhook_signature(settings, payload, "bad")
+
+
 @pytest.mark.asyncio
-async def test_webhook_checkout_activates_user() -> None:
+async def test_webhook_subscription_created_activates_user() -> None:
     control = InMemoryControlStore()
     user = await control.upsert_user("sub-1", email="pay@example.com")
-    # Expire trial so only subscription unlocks.
     control.users[user.id] = UserRecord(
         id=user.id,
         email=user.email,
@@ -89,32 +104,32 @@ async def test_webhook_checkout_activates_user() -> None:
         trial_started_at=utcnow() - timedelta(days=30),
         plan_status="trial",
     )
-    await handle_stripe_webhook_event(
+    await handle_lemon_webhook_event(
         control,
         {
-            "type": "checkout.session.completed",
+            "meta": {
+                "event_name": "subscription_created",
+                "custom_data": {"user_id": user.id},
+            },
             "data": {
-                "object": {
-                    "client_reference_id": user.id,
-                    "customer": "cus_123",
-                    "subscription": "sub_123",
-                }
+                "id": "999",
+                "attributes": {
+                    "customer_id": 42,
+                    "status": "active",
+                    "renews_at": "2099-01-01T00:00:00.000000Z",
+                },
             },
         },
     )
     updated = await control.get_user(user.id)
     assert updated is not None
     assert updated.plan_status == "active"
-    assert updated.stripe_customer_id == "cus_123"
-    assert updated.stripe_subscription_id == "sub_123"
+    assert updated.stripe_customer_id == "42"
+    assert updated.stripe_subscription_id == "999"
 
 
 @pytest.mark.asyncio
-async def test_expired_user_cannot_push(monkeypatch) -> None:
-    monkeypatch.setenv("TRIAL_DAYS", "14")
-    from app.config import get_settings
-
-    get_settings.cache_clear()
+async def test_expired_user_cannot_push() -> None:
     control = InMemoryControlStore()
     service = KnowledgeService(FakeNamsStore(), control)
     user = await control.upsert_user("sub-exp", email="exp@example.com")
@@ -137,10 +152,10 @@ async def test_expired_user_cannot_push(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_kb_upgrade_without_stripe_returns_message() -> None:
+async def test_kb_upgrade_without_lemon_returns_message() -> None:
     control = InMemoryControlStore()
     service = KnowledgeService(FakeNamsStore(), control)
     user = await control.upsert_user("sub-up", email="up@example.com")
     result = await service.create_upgrade_checkout(user.id)
     assert result.checkout_url is None
-    assert "Stripe is not configured" in result.message or "pricing" in result.message
+    assert "Lemon Squeezy" in result.message or "pricing" in result.message

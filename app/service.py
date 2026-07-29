@@ -37,7 +37,7 @@ from app.models import (
     UpgradeResult,
 )
 from app.nams import NamsStore
-from app.stripe_billing import (
+from app.lemon_billing import (
     BillingNotConfiguredError,
     create_checkout_session,
 )
@@ -465,7 +465,7 @@ class KnowledgeService:
         )
 
     async def create_upgrade_checkout(self, user_id: str) -> UpgradeResult:
-        """Create Stripe Checkout for the authenticated user (not entitlement-gated)."""
+        """Create Lemon Squeezy Checkout for the authenticated user."""
         user = await self._require_user(user_id)
         settings = get_settings()
         entitlement = evaluate_entitlement(user, settings)
@@ -499,7 +499,7 @@ class KnowledgeService:
             plan_status=user.plan_status,
             trial_ends_at=trial_ends,
             entitled=entitlement.allowed,
-            message="Open this Stripe Checkout URL to subscribe.",
+            message="Open this Lemon Squeezy checkout URL to subscribe.",
         )
 
     async def _require_user(self, user_id: str) -> UserRecord:

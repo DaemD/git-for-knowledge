@@ -1,4 +1,4 @@
-"""Trial + Stripe subscription entitlement for grphly users."""
+"""Trial + Lemon Squeezy subscription entitlement for grphly users."""
 
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ def evaluate_entitlement(user: UserRecord, settings: Settings) -> Entitlement:
     return Entitlement(
         allowed=False,
         reason=(
-            "Trial ended. Run kb_upgrade in chat for a Stripe checkout link, "
+            "Trial ended. Run kb_upgrade in chat for a checkout link, "
             f"or visit {upgrade}"
         ),
         plan_status=status,
