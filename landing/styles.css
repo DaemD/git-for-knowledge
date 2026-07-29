@@ -642,6 +642,66 @@ code {
   white-space: pre;
 }
 
+.price-card {
+  margin: 2.5rem auto 0;
+  max-width: 28rem;
+  padding: 1.75rem 1.5rem;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-elev);
+  text-align: center;
+}
+
+.price-name {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.price-amount {
+  margin: 0.75rem 0 0;
+  font-family: var(--display);
+  font-size: 1.1rem;
+  letter-spacing: 0.06em;
+  color: var(--soft);
+}
+
+.price-amount span {
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.price-features {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.price-features li {
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.price-cta {
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.price-note {
+  margin: 1.25rem 0 0;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
 .foot {
   max-width: var(--max);
   margin: 0 auto;
