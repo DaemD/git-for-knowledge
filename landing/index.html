@@ -36,27 +36,14 @@
           Fetch in Claude or ChatGPT.
         </h1>
         <p class="lede">
-          One knowledge base — not five conflicting mental models. You push a
-          decision once; your teammates and their AIs fetch the same context.
-          Shared memory across tools and across people in the org.
+          One knowledge base — not five conflicting mental models. Push chat
+          summaries, architecture decisions, and research dumps from Cursor,
+          Claude, or ChatGPT. Your teammates fetch the same context in whatever
+          AI they use.
         </p>
         <div class="cta-row">
           <a class="btn primary" href="#connect">Connect your AI — free beta</a>
           <a class="btn ghost" href="#examples">See real examples</a>
-        </div>
-        <div class="hero-visual" aria-hidden="true">
-          <pre class="hero-stream">
-<span class="dim">you · Cursor</span>
-<span class="dim">$</span> kb push Auth is Auth0 + Google. Never store passwords.
-<span class="ok">ok</span>  stored · startup-api
-
-<span class="dim">you · Claude Code · different tool</span>
-<span class="dim">$</span> kb fetch How do we handle auth?
-<span class="ok">→</span>  Auth0 + Google. Never store passwords.
-
-<span class="dim">alex · ChatGPT · same org</span>
-<span class="dim">$</span> kb fetch How do we handle auth?
-<span class="ok">→</span>  same answer — shared KB, not a private chat memory</pre>
         </div>
       </section>
 
@@ -138,42 +125,66 @@
 
       <section id="examples" class="section">
         <p class="eyebrow">Examples</p>
-        <h2>This is what<br />“buy it” looks like.</h2>
+        <h2>Push whole sessions.<br />Not just one-liners.</h2>
         <p class="section-lede">
-          Real moments where grphly pays for itself before lunch.
+          <code>kb push</code> takes any durable text — a sentence, a design
+          dump, or a summarized chat from another LLM. Fetch later with a real
+          question.
         </p>
 
         <div class="example-list">
           <article>
-            <h3>Solo builder · multi-tool workflow</h3>
+            <h3>Cursor session → Claude Code</h3>
             <p>
-              You prototype in Cursor, then ask Claude to write the README.
-              Without shared memory, Claude invents a different auth story.
-              With grphly, it fetches what you already pushed — and stays
-              consistent.
+              After a long Cursor thread, push the summary into grphly. Next
+              day in Claude Code, fetch it — same stack decisions, no re-brief.
             </p>
-            <pre><code>kb push Public API is /v1. No GraphQL. Deadline Friday.
-kb fetch What endpoints and deadline matter this week?</code></pre>
+            <pre><code>kb push """
+Session summary (Cursor, auth refactor):
+- Auth0 + Google social only; no local passwords
+- Access tokens audience = https://grphly-dev.miless.app/mcp
+- Callbacks: localhost:8787 + Claude auth_callback
+- Rejected: rolling our own JWT store
+Open: invite email copy still draft
+"""
+
+kb fetch What did we decide about auth and callbacks?</code></pre>
           </article>
           <article>
-            <h3>Two-person startup · shared brain</h3>
+            <h3>ChatGPT research → team Cursor</h3>
             <p>
-              You decided Neo4j for relationships at 11pm. Your cofounder
-              opens ChatGPT the next morning and asks “what DB?” — and gets
-              your decision, not a generic “use Postgres” guess.
+              Cofounder researches pricing and competitors in ChatGPT, pushes
+              the condensed notes. You open Cursor and fetch the market context
+              without reading their chat log.
             </p>
-            <pre><code>kb invite cofounder@gmail.com write
-kb fetch Why Neo4j and not Postgres?</code></pre>
+            <pre><code>kb push """
+ChatGPT research dump — competitor memory tools:
+- Mem0: strong SDK, weaker shared-team KB story
+- Our wedge: shared kb_id + invite by Google email
+- Pricing hypothesis: free solo, paid seats for orgs
+Sources discussed: mem0.ai, Reddit MCP threads
+"""
+
+kb fetch What's our wedge vs Mem0 and pricing hypothesis?</code></pre>
           </article>
           <article>
-            <h3>Agency / client work · less drift</h3>
+            <h3>Claude design review → agency handoff</h3>
             <p>
-              Brand rules, forbidden libraries, deploy targets — pushed once
-              per client KB. Every agent on the account stops “helpfully”
-              rewriting the stack mid-sprint.
+              Client constraints come out of a Claude review. Push the full
+              brief into a client KB. Anyone on the account fetches rules
+              instead of reinventing the stack.
             </p>
             <pre><code>kb create acme-rebrand "Acme Q2 site"
-kb push No Tailwind. Custom CSS only. Deploy on Vercel.</code></pre>
+
+kb push """
+Claude design review — Acme Q2:
+Must: custom CSS only, no Tailwind, WCAG AA
+Deploy: Vercel, preview URLs for stakeholders
+Tone: quiet, technical, no emoji in UI copy
+Out of scope: mobile app, CMS migration
+"""
+
+kb fetch What CSS and deploy constraints does Acme have?</code></pre>
           </article>
         </div>
       </section>
@@ -199,8 +210,8 @@ kb revoke &lt;email&gt;
 kb delete &lt;id&gt;</code></pre>
           </div>
           <div class="cmd-map">
-            <div><span>kb push</span><span>lock in a decision before you forget it</span></div>
-            <div><span>kb fetch</span><span>ask the project, not your memory</span></div>
+            <div><span>kb push</span><span>store summaries, decisions, research dumps</span></div>
+            <div><span>kb fetch</span><span>ask across what any LLM pushed</span></div>
             <div><span>kb invite</span><span>give a teammate the same brain</span></div>
             <div><span>kb list</span><span>see every knowledge base you own</span></div>
             <div><span>kb create</span><span>one KB per product, client, or idea</span></div>
@@ -230,8 +241,8 @@ kb delete &lt;id&gt;</code></pre>
           <li>
             <strong>Push what matters</strong>
             <span
-              >Architecture, constraints, “never do X.” The stuff that
-              wastes an hour when the model invents it wrong.</span
+              >Architecture notes, chat summaries, “never do X.” Anything
+              durable you don’t want trapped in one model’s context window.</span
             >
           </li>
           <li>
