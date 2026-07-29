@@ -133,11 +133,11 @@ code {
 
 .hero h1 {
   margin: 0;
-  max-width: 18ch;
+  max-width: 22ch;
   font-family: var(--display);
   font-weight: 500;
-  font-size: clamp(1.45rem, 3.8vw, 2.45rem);
-  line-height: 1.2;
+  font-size: clamp(1.35rem, 3.6vw, 2.35rem);
+  line-height: 1.25;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--soft);
@@ -638,7 +638,7 @@ code {
   color: var(--muted);
   font-size: 0.85rem;
   letter-spacing: 0.14em;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .reveal {
