@@ -59,8 +59,10 @@ uvicorn app.server:app --reload
 ## Auth note
 
 Configure Auth0 (or compatible) with Google social login. Set
-`PUBLIC_BASE_URL` to the public MCP URL. Cursor callbacks must be Cursor
-localhost URLs, not your Railway `/mcp` path.
+`PUBLIC_BASE_URL` to `https://grphly-dev.miless.app` (or your public MCP host).
+Cursor callbacks must be Cursor localhost URLs, not your `/mcp` path.
+
+MCP endpoint: `https://grphly-dev.miless.app/mcp`
 
 ## Landing
 
