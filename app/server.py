@@ -24,6 +24,12 @@ from app.models import (
     RevokeKnowledgeBaseAccessResult,
 )
 from app.nams import NamsStore
+from app.oauth_proxy import (
+    oauth_authorization_server_metadata,
+    oauth_authorize,
+    oauth_register,
+    oauth_token,
+)
 from app.service import KnowledgeService
 
 
