@@ -477,6 +477,30 @@ code {
   text-align: left;
 }
 
+.oauth-callout {
+  margin: 1.5rem auto 0;
+  max-width: 40rem;
+  padding: 0.95rem 1.1rem;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-elev);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  text-align: left;
+}
+
+.oauth-callout code {
+  display: inline-block;
+  margin-top: 0.35rem;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.snippet-gap {
+  margin-top: 0.85rem;
+}
+
 .snippet {
   max-width: 40rem;
   margin: 0 auto;

@@ -248,9 +248,14 @@ kb delete &lt;id&gt;</code></pre>
         <p class="eyebrow">Setup</p>
         <h2>Connect your AI.<br />Start pushing today.</h2>
         <p class="section-lede">
-          Same endpoint everywhere. Pick your client, paste the snippet, sign
-          in with Google — then run <code>kb push</code> on the first fact
-          you’re tired of repeating.
+          Same endpoint everywhere. Pick your client, paste the snippet
+          (includes the OAuth client id), sign in with Google — then run
+          <code>kb push</code> on the first fact you’re tired of repeating.
+        </p>
+
+        <p class="oauth-callout">
+          OAuth client id (Auth0 native / MCP clients):
+          <code>0duBflkrH7BfwctBStAM8h6AAzAtbexD</code>
         </p>
 
         <div class="tabs" role="tablist" aria-label="AI clients">
@@ -274,7 +279,7 @@ kb delete &lt;id&gt;</code></pre>
         <article class="panel active" data-panel="cursor">
           <ol class="install-steps">
             <li>Open Cursor Settings → MCP, or edit <code>.cursor/mcp.json</code>.</li>
-            <li>Paste the snippet below and save.</li>
+            <li>Paste the snippet below (URL + <code>CLIENT_ID</code>) and save.</li>
             <li>Refresh the server, then sign in with Google when prompted.</li>
             <li>In chat: <code>kb create my-project</code> then <code>kb push …</code></li>
           </ol>
@@ -287,7 +292,10 @@ kb delete &lt;id&gt;</code></pre>
   "mcpServers": {
     "grphly": {
       "type": "http",
-      "url": "https://grphly-dev.miless.app/mcp"
+      "url": "https://grphly-dev.miless.app/mcp",
+      "auth": {
+        "CLIENT_ID": "0duBflkrH7BfwctBStAM8h6AAzAtbexD"
+      }
     }
   }
 }</code></pre>
@@ -298,8 +306,9 @@ kb delete &lt;id&gt;</code></pre>
           <ol class="install-steps">
             <li>In the Agent panel, open <strong>…</strong> → MCP Servers → Manage MCP Servers.</li>
             <li>Choose View raw config to open <code>mcp_config.json</code>.</li>
-            <li>Add the snippet. Use <code>serverUrl</code> (Antigravity’s HTTP field).</li>
-            <li>Refresh MCP, sign in with Google if prompted, then <code>kb list</code>.</li>
+            <li>Add the snippet (uses <code>serverUrl</code>). Complete Google OAuth when prompted.</li>
+            <li>If auth asks for a client id, use the OAuth client id above.</li>
+            <li>Refresh MCP, then <code>kb list</code>.</li>
           </ol>
           <div class="snippet">
             <div class="snippet-bar">
@@ -318,7 +327,7 @@ kb delete &lt;id&gt;</code></pre>
 
         <article class="panel" data-panel="claude-code">
           <ol class="install-steps">
-            <li>Run the command below in your terminal.</li>
+            <li>Run the command below (includes <code>--client-id</code> for Auth0).</li>
             <li>Inside Claude Code, run <code>/mcp</code> and complete Google sign-in.</li>
             <li>Confirm grphly tools appear, then try <code>kb list</code>.</li>
           </ol>
@@ -327,17 +336,18 @@ kb delete &lt;id&gt;</code></pre>
               <span>terminal</span>
               <button type="button" class="copy" data-copy="claude-code">Copy</button>
             </div>
-            <pre><code id="snippet-claude-code">claude mcp add --transport http grphly \
-  https://grphly-dev.miless.app/mcp</code></pre>
+            <pre><code id="snippet-claude-code">claude mcp add --transport http \
+  --client-id 0duBflkrH7BfwctBStAM8h6AAzAtbexD \
+  grphly https://grphly-dev.miless.app/mcp</code></pre>
           </div>
         </article>
 
         <article class="panel" data-panel="claude">
           <ol class="install-steps">
             <li>Open Claude → Settings → Connectors (or MCP servers).</li>
-            <li>Add a custom connector with the URL below.</li>
-            <li>Authorize with Google when Claude opens the login flow.</li>
-            <li>Start a chat and type <code>kb list</code>.</li>
+            <li>Add a custom connector with the MCP URL below.</li>
+            <li>If Claude asks for an OAuth client id, paste the client id from above.</li>
+            <li>Authorize with Google, then type <code>kb list</code>.</li>
           </ol>
           <div class="snippet">
             <div class="snippet-bar">
@@ -346,18 +356,25 @@ kb delete &lt;id&gt;</code></pre>
             </div>
             <pre><code id="snippet-claude">https://grphly-dev.miless.app/mcp</code></pre>
           </div>
+          <div class="snippet snippet-gap">
+            <div class="snippet-bar">
+              <span>OAuth client id</span>
+              <button type="button" class="copy" data-copy="claude-client">Copy</button>
+            </div>
+            <pre><code id="snippet-claude-client">0duBflkrH7BfwctBStAM8h6AAzAtbexD</code></pre>
+          </div>
         </article>
 
         <article class="panel" data-panel="chatgpt">
           <ol class="install-steps">
             <li>ChatGPT Settings → Connectors → enable Developer Mode (where available).</li>
-            <li>Add a custom connector. Name it grphly. Paste the MCP URL.</li>
-            <li>Choose OAuth, then sign in with Google.</li>
-            <li>In a chat, enable the connector and try <code>kb list</code>.</li>
+            <li>Add a custom connector named grphly. Paste the MCP URL.</li>
+            <li>Choose OAuth. If asked for a client id, use the one above.</li>
+            <li>Sign in with Google, enable the connector, try <code>kb list</code>.</li>
           </ol>
           <p class="note">
             Custom connectors may require a paid ChatGPT plan with Developer Mode.
-            Your Auth0 app must allow ChatGPT’s OAuth callback URL.
+            Auth0 must allow ChatGPT’s OAuth callback URL for that client.
           </p>
           <div class="snippet">
             <div class="snippet-bar">
@@ -365,6 +382,13 @@ kb delete &lt;id&gt;</code></pre>
               <button type="button" class="copy" data-copy="chatgpt">Copy</button>
             </div>
             <pre><code id="snippet-chatgpt">https://grphly-dev.miless.app/mcp</code></pre>
+          </div>
+          <div class="snippet snippet-gap">
+            <div class="snippet-bar">
+              <span>OAuth client id</span>
+              <button type="button" class="copy" data-copy="chatgpt-client">Copy</button>
+            </div>
+            <pre><code id="snippet-chatgpt-client">0duBflkrH7BfwctBStAM8h6AAzAtbexD</code></pre>
           </div>
         </article>
       </section>
