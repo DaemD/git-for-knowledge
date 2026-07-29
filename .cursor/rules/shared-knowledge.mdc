@@ -1,11 +1,11 @@
 ---
-description: Graphly MCP — git-style kb commands
+description: grphly MCP — git-style kb commands
 alwaysApply: true
 ---
 
-# Graphly (`kb` commands)
+# grphly (`kb` commands)
 
-Users type git-style commands in chat. Call the matching Graphly MCP tool.
+Users type git-style commands in chat. Call the matching grphly MCP tool.
 
 ## Vocabulary
 

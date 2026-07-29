@@ -1,4 +1,4 @@
-# Graphly MCP
+# grphly MCP
 
 Google-authenticated shared memory for AI assistants. Everyone shares **one**
 NAMS workspace. Each user owns logical **knowledge bases** addressed by

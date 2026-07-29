@@ -1,3 +1,3 @@
-"""Graphly MCP service."""
+"""grphly MCP service."""
 
 __version__ = "0.1.0"

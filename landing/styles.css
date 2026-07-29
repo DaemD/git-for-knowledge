@@ -89,7 +89,7 @@ code {
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: 0.14em;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .top-nav {
@@ -126,7 +126,7 @@ code {
   font-weight: 700;
   line-height: 0.95;
   letter-spacing: 0.16em;
-  text-transform: uppercase;
+  text-transform: none;
   opacity: 0;
   animation: rise 0.9s ease forwards;
 }

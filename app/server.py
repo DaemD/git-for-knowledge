@@ -40,14 +40,14 @@ def _build_mcp(settings: Settings) -> FastMCP:
     issuer = settings.oauth_issuer_url or settings.public_base_url
     resource = AnyHttpUrl(str(settings.public_base_url).rstrip("/") + "/mcp")
     return FastMCP(
-        name="Graphly",
+        name="grphly",
         instructions=(
-            "Graphly is persistent shared memory for Google-authenticated "
+            "grphly is persistent shared memory for Google-authenticated "
             "users. Logical knowledge bases are addressed by kb_id. "
             "Tools use git-style names: kb_list, kb_create, kb_push, kb_fetch, "
             "kb_invite, kb_members, kb_revoke, kb_delete. "
             "When the user says 'kb list' / 'kb push' / 'kb fetch' etc. in chat, "
-            "call the matching Graphly tool. Prefer kb_id from the project when omitted. "
+            "call the matching grphly tool. Prefer kb_id from the project when omitted. "
             "Identity comes from OAuth (never a client-supplied username). "
             "Entity search remains workspace-wide soft isolation."
         ),
@@ -185,7 +185,7 @@ async def health(_: Any) -> JSONResponse:
     return JSONResponse(
         {
             "status": "ok" if runtime.service is not None else "starting",
-            "service": "graphly",
+            "service": "grphly",
             "backend": "nams",
             "endpoint": "/mcp",
             "auth": "oauth",

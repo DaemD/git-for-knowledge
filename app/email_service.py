@@ -36,11 +36,11 @@ async def send_kb_invite_email(
         return EmailSendResult(sent=False, error="EMAIL_FROM not set")
 
     inviter = inviter_name or inviter_email or "A collaborator"
-    subject = f"You're invited to '{kb_name}' on Graphly"
+    subject = f"You're invited to '{kb_name}' on grphly"
     text = (
-        f"{inviter} invited you to a Graphly knowledge base "
+        f"{inviter} invited you to a grphly knowledge base "
         f"'{kb_name}' (kb_id: {kb_id}) with {role} access.\n\n"
-        f"1. Sign in to Graphly MCP with this exact Google email: "
+        f"1. Sign in to grphly MCP with this exact Google email: "
         f"{to_email}\n"
         f"2. Use the same MCP URL and Client ID as your teammate.\n"
         f"3. In chat: kb list, then kb fetch / kb push with "
@@ -49,10 +49,10 @@ async def send_kb_invite_email(
     html = f"""
     <p><strong>{inviter}</strong> invited you to
     <strong>{kb_name}</strong> (<code>{kb_id}</code>) with
-    <strong>{role}</strong> access on <strong>Graphly</strong>.</p>
+    <strong>{role}</strong> access on <strong>grphly</strong>.</p>
     <ol>
       <li>Sign in with Google as <code>{to_email}</code></li>
-      <li>Connect Graphly MCP (same URL + Client ID)</li>
+      <li>Connect grphly MCP (same URL + Client ID)</li>
       <li>In chat type <code>kb list</code>, then
           <code>kb fetch</code> / <code>kb push</code> with
           <code>kb_id="{kb_id}"</code></li>

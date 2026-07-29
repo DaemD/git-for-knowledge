@@ -1,7 +1,7 @@
 [project]
-name = "graphly"
+name = "grphly"
 version = "0.3.0"
-description = "Graphly — shared knowledge for AI assistants via MCP"
+description = "grphly — shared knowledge for AI assistants via MCP"
 requires-python = ">=3.12"
 dependencies = [
     "asyncpg>=0.29",
@@ -22,7 +22,7 @@ dev = [
 ]
 
 [project.scripts]
-graphly = "app.server:main"
+grphly = "app.server:main"
 
 [build-system]
 requires = ["hatchling"]

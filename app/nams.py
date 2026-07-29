@@ -44,7 +44,7 @@ class NamsStore:
     ) -> str:
         session_id = f"graph-{uuid4().hex}"
         payload = {
-            "purpose": "graphly",
+            "purpose": "grphly",
             "graph_name": name,
             **(metadata or {}),
         }

@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Graphly — Stop re-explaining your project to AI</title>
+    <title>grphly — Stop re-explaining your project to AI</title>
     <meta
       name="description"
-      content="Your AI forgets. Your teammates start from zero. Graphly is shared memory for Cursor, Claude, ChatGPT, and any MCP client — push once, fetch everywhere."
+      content="Your AI forgets. Your teammates start from zero. grphly is shared memory for Cursor, Claude, ChatGPT, and any MCP client — push once, fetch everywhere."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -20,7 +20,7 @@
     <div class="grain" aria-hidden="true"></div>
 
     <header class="top">
-      <a class="brand" href="#">Graphly</a>
+      <a class="brand" href="#">grphly</a>
       <nav class="top-nav">
         <a href="#why">Why</a>
         <a href="#examples">Examples</a>
@@ -30,11 +30,11 @@
 
     <main>
       <section class="hero">
-        <p class="brand-mark">Graphly</p>
+        <p class="brand-mark">grphly</p>
         <h1>Stop re-teaching<br />your AI every morning.</h1>
         <p class="lede">
           Every new chat starts blank. Every teammate re-explains the stack.
-          Graphly is shared knowledge for your AI tools — push a decision once,
+          grphly is shared knowledge for your AI tools — push a decision once,
           fetch it in Cursor, Claude, ChatGPT, or Antigravity. Like git, for
           what your team already knows.
         </p>
@@ -79,7 +79,7 @@
         </p>
         <div class="pain-grid">
           <div>
-            <strong>Without Graphly</strong>
+            <strong>Without grphly</strong>
             <p>
               “We use Postgres, right?” — asked for the 4th time this week.
               Junior joins, spends half a day reconstructing decisions from
@@ -87,7 +87,7 @@
             </p>
           </div>
           <div>
-            <strong>With Graphly</strong>
+            <strong>With grphly</strong>
             <p>
               Push the decision once. Any teammate, any assistant, any day —
               <code>kb fetch</code> returns the same source of truth. Less
@@ -119,7 +119,7 @@
           <li>
             <strong>Onboard without a lecture</strong>
             <span
-              >Invite a teammate. They sign in with Google, connect Graphly,
+              >Invite a teammate. They sign in with Google, connect grphly,
               and ask the project what matters. No 45-minute voice call.</span
             >
           </li>
@@ -138,7 +138,7 @@
         <p class="eyebrow">Examples</p>
         <h2>This is what<br />“buy it” looks like.</h2>
         <p class="section-lede">
-          Real moments where Graphly pays for itself before lunch.
+          Real moments where grphly pays for itself before lunch.
         </p>
 
         <div class="example-list">
@@ -147,7 +147,7 @@
             <p>
               You prototype in Cursor, then ask Claude to write the README.
               Without shared memory, Claude invents a different auth story.
-              With Graphly, it fetches what you already pushed — and stays
+              With grphly, it fetches what you already pushed — and stays
               consistent.
             </p>
             <pre><code>kb push Public API is /v1. No GraphQL. Deadline Friday.
@@ -178,7 +178,7 @@ kb push No Tailwind. Custom CSS only. Deploy on Vercel.</code></pre>
 
       <section id="commands" class="section">
         <p class="eyebrow">Commands</p>
-        <h2>If you can type git,<br />you can use Graphly.</h2>
+        <h2>If you can type git,<br />you can use grphly.</h2>
         <p class="section-lede">
           No dashboard homework. In chat, say what you mean — the model calls
           the MCP tool. Push knowledge like you push code.
@@ -214,7 +214,7 @@ kb delete &lt;id&gt;</code></pre>
           <li>
             <strong>Connect your AI</strong>
             <span
-              >Add Graphly as an MCP server. Sign in with Google. Under two
+              >Add grphly as an MCP server. Sign in with Google. Under two
               minutes on Cursor.</span
             >
           </li>
@@ -283,7 +283,7 @@ kb delete &lt;id&gt;</code></pre>
             </div>
             <pre><code id="snippet-cursor">{
   "mcpServers": {
-    "graphly": {
+    "grphly": {
       "type": "http",
       "url": "https://dev-production-c1ec.up.railway.app/mcp"
     }
@@ -306,7 +306,7 @@ kb delete &lt;id&gt;</code></pre>
             </div>
             <pre><code id="snippet-antigravity">{
   "mcpServers": {
-    "graphly": {
+    "grphly": {
       "serverUrl": "https://dev-production-c1ec.up.railway.app/mcp"
     }
   }
@@ -318,14 +318,14 @@ kb delete &lt;id&gt;</code></pre>
           <ol class="install-steps">
             <li>Run the command below in your terminal.</li>
             <li>Inside Claude Code, run <code>/mcp</code> and complete Google sign-in.</li>
-            <li>Confirm Graphly tools appear, then try <code>kb list</code>.</li>
+            <li>Confirm grphly tools appear, then try <code>kb list</code>.</li>
           </ol>
           <div class="snippet">
             <div class="snippet-bar">
               <span>terminal</span>
               <button type="button" class="copy" data-copy="claude-code">Copy</button>
             </div>
-            <pre><code id="snippet-claude-code">claude mcp add --transport http graphly \
+            <pre><code id="snippet-claude-code">claude mcp add --transport http grphly \
   https://dev-production-c1ec.up.railway.app/mcp</code></pre>
           </div>
         </article>
@@ -349,7 +349,7 @@ kb delete &lt;id&gt;</code></pre>
         <article class="panel" data-panel="chatgpt">
           <ol class="install-steps">
             <li>ChatGPT Settings → Connectors → enable Developer Mode (where available).</li>
-            <li>Add a custom connector. Name it Graphly. Paste the MCP URL.</li>
+            <li>Add a custom connector. Name it grphly. Paste the MCP URL.</li>
             <li>Choose OAuth, then sign in with Google.</li>
             <li>In a chat, enable the connector and try <code>kb list</code>.</li>
           </ol>
@@ -370,7 +370,7 @@ kb delete &lt;id&gt;</code></pre>
       <section class="section closing">
         <h2>Your next chat<br />doesn’t have to be blank.</h2>
         <p class="section-lede">
-          Connect Graphly once. Push the facts you’re tired of repeating.
+          Connect grphly once. Push the facts you’re tired of repeating.
           Tomorrow’s AI — and your teammates — already know.
         </p>
         <a class="btn primary" href="#connect">Connect your AI — free beta</a>
@@ -378,7 +378,7 @@ kb delete &lt;id&gt;</code></pre>
     </main>
 
     <footer class="foot">
-      <span>Graphly</span>
+      <span>grphly</span>
       <span>Early beta · Google sign-in · shared knowledge for MCP</span>
     </footer>
 

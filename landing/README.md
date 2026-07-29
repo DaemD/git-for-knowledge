@@ -1,4 +1,4 @@
-# Graphly landing
+# grphly landing
 
 Static marketing page. Deploy as a **separate** Railway service from the MCP API.
 
@@ -16,4 +16,4 @@ python -m http.server 5173
 3. Leave Build / Start empty — `railway.toml` + `Dockerfile` handle it
 4. Deploy
 
-Do **not** point this service at the repo root; the root `Dockerfile` builds the Graphly MCP API.
+Do **not** point this service at the repo root; the root `Dockerfile` builds the grphly MCP API.

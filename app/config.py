@@ -13,7 +13,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Shared NAMS workspace for the whole Graphly deployment.
+    # Shared NAMS workspace for the whole grphly deployment.
     memory_api_key: SecretStr
     memory_endpoint: str = "https://memory.neo4jlabs.com/v1"
     memory_workspace_id: str = Field(

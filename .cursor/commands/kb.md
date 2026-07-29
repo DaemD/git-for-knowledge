@@ -1,6 +1,6 @@
-# kb — Graphly commands
+# kb — grphly commands
 
-Users type git-style commands in chat. Map them to Graphly MCP tools.
+Users type git-style commands in chat. Map them to grphly MCP tools.
 
 ## Command → tool
 
