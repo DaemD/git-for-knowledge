@@ -443,11 +443,11 @@ kb delete &lt;id&gt;</code></pre>
 
         <article class="panel" data-panel="antigravity">
           <ol class="install-steps">
-            <li>In the Agent panel, open <strong>…</strong> → MCP Servers → Manage MCP Servers.</li>
-            <li>Choose View raw config to open <code>mcp_config.json</code>.</li>
-            <li>Add the snippet (uses <code>serverUrl</code>). Complete Google OAuth when prompted.</li>
-            <li>If auth asks for a client id, use the OAuth client id above.</li>
-            <li>Refresh MCP, then <code>kb list</code>.</li>
+            <li>In the Agent panel, open <strong>…</strong> → MCP Servers → Manage MCP Servers → View raw config.</li>
+            <li>Paste the <code>mcp-remote</code> snippet below (native <code>serverUrl</code> often fails Auth0 OAuth on Antigravity).</li>
+            <li>Ensure Node 18+ is installed, then Refresh. A browser window should open for Google sign-in.</li>
+            <li>If sign-in fails with a callback error, add <code>http://127.0.0.1:3334/oauth/callback</code> and <code>http://localhost:3334/oauth/callback</code> to the Auth0 app Allowed Callback URLs.</li>
+            <li>After connect: <code>kb list</code>.</li>
           </ol>
           <div class="snippet">
             <div class="snippet-bar">
@@ -457,7 +457,17 @@ kb delete &lt;id&gt;</code></pre>
             <pre><code id="snippet-antigravity">{
   "mcpServers": {
     "grphly": {
-      "serverUrl": "https://grphly-dev.miless.app/mcp"
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://grphly-dev.miless.app/mcp",
+        "3334",
+        "--host",
+        "127.0.0.1",
+        "--static-oauth-client-info",
+        "{\"client_id\":\"0duBflkrH7BfwctBStAM8h6AAzAtbexD\"}"
+      ]
     }
   }
 }</code></pre>
