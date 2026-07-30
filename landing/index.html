@@ -19,15 +19,18 @@
   <body>
     <div class="grain" aria-hidden="true"></div>
 
-    <header class="top">
-      <a class="brand" href="#">grphly</a>
-      <nav class="top-nav">
-        <a href="#why">Why</a>
-        <a href="#examples">Examples</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#connect">Connect</a>
-      </nav>
-    </header>
+    <div class="top-bar">
+      <header class="top">
+        <a class="brand" href="#">grphly</a>
+        <nav class="top-nav">
+          <a href="#why">Why</a>
+          <a href="#examples">Examples</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#faq">FAQ</a>
+          <a href="#connect">Connect</a>
+        </nav>
+      </header>
+    </div>
 
     <main>
       <section class="hero">
@@ -46,9 +49,33 @@
           <a class="btn primary" href="#connect">Connect your AI — free beta</a>
           <a class="btn ghost" href="#examples">See real examples</a>
         </div>
+
+        <div
+          class="demo-stage"
+          data-demo="push-fetch"
+          aria-label="Live demo: push in Cursor, fetch in Claude"
+        >
+          <div class="demo-chrome">
+            <div class="demo-dots" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <span class="demo-url">grphly · push → fetch</span>
+          </div>
+          <div class="demo-panes">
+            <div class="demo-pane">
+              <div class="demo-pane-title">Cursor</div>
+              <pre class="demo-body" id="demo-cursor"></pre>
+            </div>
+            <div class="demo-pane">
+              <div class="demo-pane-title">Claude</div>
+              <pre class="demo-body" id="demo-claude"></pre>
+            </div>
+          </div>
+          <p class="demo-caption">push once · fetch anywhere</p>
+        </div>
       </section>
 
-      <section class="strip" aria-label="Works with">
+      <section class="strip" aria-label="Works with" data-demo="strip">
         <p>One memory layer across the tools you already pay for</p>
         <ul>
           <li>Cursor</li>
@@ -67,6 +94,23 @@
           Slack threads die. So you paste the same architecture note —
           again — and burn tokens explaining what you already decided.
         </p>
+        <div class="amnesia" data-demo="amnesia" aria-hidden="true">
+          <div class="amnesia-pane">
+            <div class="label">Cursor</div>
+            <div class="line">We use Postgres for the auth service…</div>
+            <div class="cleared">context cleared</div>
+          </div>
+          <div class="amnesia-pane">
+            <div class="label">Claude</div>
+            <div class="line">We use Postgres for the auth service…</div>
+            <div class="cleared">context cleared</div>
+          </div>
+          <div class="amnesia-pane">
+            <div class="label">ChatGPT</div>
+            <div class="line">We use Postgres for the auth service…</div>
+            <div class="cleared">context cleared</div>
+          </div>
+        </div>
         <div class="pain-grid">
           <div>
             <strong>Without grphly</strong>
@@ -190,6 +234,15 @@ kb fetch What CSS and deploy constraints does Acme have?</code></pre>
         </div>
       </section>
 
+      <section class="cta-band" aria-label="Get started">
+        <h2>Connect your AI.<br />Stop re-explaining.</h2>
+        <p>
+          Add grphly as an MCP server. Push once. Fetch in any assistant —
+          or invite a teammate to the same knowledge base.
+        </p>
+        <a class="btn primary" href="#connect">Connect your AI — free beta</a>
+      </section>
+
       <section id="pricing" class="section">
         <p class="eyebrow">Pricing</p>
         <h2>14 days free.<br />Then one simple plan.</h2>
@@ -282,6 +335,52 @@ kb delete &lt;id&gt;</code></pre>
             >
           </li>
         </ol>
+      </section>
+
+      <section id="faq" class="section">
+        <p class="eyebrow">FAQ</p>
+        <h2>What you need<br />to know.</h2>
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>What is grphly?</summary>
+            <p>
+              A shared knowledge base for your AI tools and team. Push durable
+              decisions from Cursor, Claude, or ChatGPT; fetch the same truth
+              in any assistant. Feels like git for project memory — not another
+              wiki.
+            </p>
+          </details>
+          <details class="faq-item">
+            <summary>Do I need a new app?</summary>
+            <p>
+              No. Connect grphly as an MCP server in the AI you already use.
+              Type <code>kb push</code> / <code>kb fetch</code> in chat. No
+              dashboard homework.
+            </p>
+          </details>
+          <details class="faq-item">
+            <summary>How does the free trial work?</summary>
+            <p>
+              14 days from your first Google sign-in. Then run
+              <code>kb upgrade</code> in chat for Lemon Squeezy checkout —
+              Pro is $19/month per seat.
+            </p>
+          </details>
+          <details class="faq-item">
+            <summary>Can teammates share a knowledge base?</summary>
+            <p>
+              Yes. Invite by Google email with <code>kb invite</code>. They
+              connect the same MCP, join the KB, and fetch what you pushed.
+            </p>
+          </details>
+          <details class="faq-item">
+            <summary>Which tools work?</summary>
+            <p>
+              Cursor, Antigravity, Claude Code, Claude, and ChatGPT today —
+              any client that supports remote MCP + OAuth.
+            </p>
+          </details>
+        </div>
       </section>
 
       <section id="connect" class="section connect">
