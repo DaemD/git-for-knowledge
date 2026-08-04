@@ -18,10 +18,20 @@ Open http://localhost:3000 — with `NEXT_PUBLIC_AUTH_DISABLED=true` you are sig
 
 ## Deploy (Railway)
 
-1. New Railway service from this repo
-2. **Root Directory:** `dashboard`
-3. Builder: Dockerfile (`dashboard/Dockerfile`)
-4. Set build/runtime env (NEXT_PUBLIC_* must exist at **build** time):
+The repo-root `railway.toml` is for the **MCP/API** service. Do not let the dashboard service use that file.
+
+### Recommended settings (dashboard service)
+
+1. Branch: `dev`
+2. **Root Directory: leave empty** (blank)
+3. **Config-as-code path:** `railway.dashboard.toml`  
+   (or turn off config-as-code and set Dockerfile path to `Dockerfile.dashboard`)
+4. Do **not** attach Postgres
+
+Then set env vars (see below) and deploy a **new** deployment (not “Redeploy” on the failed one).
+
+If you previously set Root Directory to `dashboard` and got  
+`lstat .../dashboard: no such file or directory` — clear Root Directory and use `Dockerfile.dashboard` instead.
 
 ```text
 NEXT_PUBLIC_API_BASE_URL=https://grphly-dev.miless.app

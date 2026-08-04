@@ -1,0 +1,13 @@
+# Use this config file for the dashboard Railway service.
+# Settings → Config-as-code path: railway.dashboard.toml
+# Root Directory: (leave EMPTY)
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.dashboard"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
