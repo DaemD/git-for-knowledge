@@ -21,17 +21,20 @@ from app.memory_meta import (
 from app.models import (
     ClaimView,
     CreateKnowledgeBaseResult,
+    DashboardMeResult,
     DeleteKnowledgeBaseResult,
     EntityView,
     EvidenceView,
     InviteToKnowledgeBaseResult,
     KB_ID_PATTERN,
+    KnowledgeBaseDetailResult,
     KnowledgeBaseListResult,
     KnowledgeBaseMemberView,
     KnowledgeBaseMembersResult,
     KnowledgeBaseView,
     ProvenanceView,
     RecallResult,
+    RecentAdditionView,
     RememberResult,
     RevokeKnowledgeBaseAccessResult,
     UpgradeResult,
@@ -218,7 +221,120 @@ class KnowledgeService:
         kb_id: str,
     ) -> KnowledgeBaseMembersResult:
         await self._require_entitled_user(user_id)
-        graph = await self._require_owned_kb(user_id, kb_id)
+        graph = await self._require_kb_access(user_id, kb_id, need_write=False)
+        members = await self._members_for_graph(graph)
+        return KnowledgeBaseMembersResult(kb_id=graph.kb_id, members=members)
+
+    async def dashboard_me(self, user_id: str) -> DashboardMeResult:
+        user = await self._require_entitled_user(user_id)
+        settings = get_settings()
+        mcp_url = str(settings.public_base_url).rstrip("/") + "/mcp"
+        client_id = settings.dashboard_oauth_client_id.strip() or None
+        return DashboardMeResult(
+            user_id=user.id,
+            username=self.username_for(user),
+            email=user.email,
+            display_name=user.display_name,
+            plan_status=user.plan_status,
+            mcp_url=mcp_url,
+            oauth_client_id=client_id,
+        )
+
+    async def get_knowledge_base_detail(
+        self,
+        user_id: str,
+        kb_id: str,
+        *,
+        recent_limit: int = 30,
+    ) -> KnowledgeBaseDetailResult:
+        user = await self._require_entitled_user(user_id)
+        graph = await self._require_kb_access(user_id, kb_id, need_write=False)
+
+        accessible = await self._control.list_accessible_graphs(user_id)
+        match = next(
+            (item for item in accessible if item.graph.id == graph.id),
+            None,
+        )
+        role = match.role if match else ("owner" if graph.user_id == user_id else "read")
+        owner_email = match.owner_email if match else None
+        if owner_email is None:
+            owner = await self._control.get_user(graph.user_id)
+            owner_email = owner.email if owner else None
+
+        members = await self._members_for_graph(graph)
+        me = next(
+            (
+                member
+                for member in members
+                if member.user_id == user_id
+                or (
+                    member.email
+                    and user.email
+                    and member.email.lower() == user.email.lower()
+                )
+            ),
+            KnowledgeBaseMemberView(
+                email=user.email or user_id,
+                role=role,
+                status="active",
+                user_id=user_id,
+            ),
+        )
+
+        push_count = await self._control.count_writes(graph.id)
+        writes = await self._control.list_recent_writes(
+            graph.id,
+            limit=recent_limit,
+        )
+
+        message_text: dict[str, str] = {}
+        try:
+            messages = await self._store.list_messages(
+                graph.nams_conversation_id,
+                limit=max(recent_limit * 2, 50),
+            )
+            for message in messages:
+                mid = str(getattr(message, "id", "") or "")
+                content = str(getattr(message, "content", "") or "")
+                if mid and content:
+                    message_text[mid] = strip_memory_meta(content)
+        except Exception:
+            message_text = {}
+
+        writer_cache: dict[str, str | None] = {}
+        recent: list[RecentAdditionView] = []
+        for write in writes:
+            if write.user_id not in writer_cache:
+                writer = await self._control.get_user(write.user_id)
+                writer_cache[write.user_id] = writer.email if writer else None
+            preview = (
+                message_text.get(write.nams_message_id or "", "")
+                or f"(stored · {write.content_hash[:12]})"
+            )
+            recent.append(
+                RecentAdditionView(
+                    memory_id=write.nams_message_id,
+                    preview=_preview_text(preview),
+                    client_id=write.client_id,
+                    status=write.status,
+                    accepted_at=write.accepted_at,
+                    writer_email=writer_cache[write.user_id],
+                )
+            )
+
+        return KnowledgeBaseDetailResult(
+            username=self.username_for(user),
+            knowledge_base=_kb_view(graph, role=role, owner_email=owner_email),
+            push_count=push_count,
+            recent_additions=recent,
+            members=members,
+            me=me,
+        )
+
+    async def _members_for_graph(
+        self,
+        graph: GraphRecord,
+    ) -> list[KnowledgeBaseMemberView]:
         owner = await self._require_user(graph.user_id)
         members = [
             KnowledgeBaseMemberView(
@@ -246,7 +362,7 @@ class KnowledgeService:
                     user_id=None,
                 )
             )
-        return KnowledgeBaseMembersResult(kb_id=graph.kb_id, members=members)
+        return members
 
     async def revoke_knowledge_base_access(
         self,
@@ -739,6 +855,13 @@ def validate_kb_id(kb_id: str) -> str:
             "(must start with a letter or number)."
         )
     return kb_id
+
+
+def _preview_text(text: str, limit: int = 280) -> str:
+    cleaned = " ".join(text.split())
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[: limit - 1].rstrip() + "…"
 
 
 def _kb_view(

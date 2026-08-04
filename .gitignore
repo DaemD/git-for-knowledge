@@ -10,6 +10,9 @@ build/
 promo/node_modules/
 promo/out/
 promo/.remotion/
+dashboard/node_modules/
+dashboard/.next/
+dashboard/.env.local
 *.egg-info/
 data/memory_writes.db
 data/memory_writes.db-shm

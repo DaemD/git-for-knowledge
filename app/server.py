@@ -34,6 +34,7 @@ from app.oauth_proxy import (
     oauth_token,
 )
 from app.service import KnowledgeService
+from app.dashboard_api import apply_dashboard_cors, dashboard_routes
 from app.lemon_billing import (
     BillingNotConfiguredError,
     handle_lemon_webhook_event,
@@ -262,6 +263,7 @@ async def lifespan(_: Starlette):
 
 mcp_http_app = mcp.streamable_http_app()
 
+_settings = get_settings()
 app = Starlette(
     routes=[
         Route("/health", health, methods=["GET"]),
@@ -274,10 +276,12 @@ app = Starlette(
             methods=["GET"],
         ),
         Route("/billing/webhook", billing_webhook, methods=["POST"]),
+        *dashboard_routes(),
         Mount("/", app=mcp_http_app),
     ],
     lifespan=lifespan,
 )
+app = apply_dashboard_cors(app, _settings)
 
 
 def main() -> None:

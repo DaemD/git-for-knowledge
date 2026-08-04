@@ -124,3 +124,31 @@ class UpgradeResult(BaseModel):
     trial_ends_at: str | None = None
     entitled: bool
     message: str
+
+
+class RecentAdditionView(BaseModel):
+    memory_id: str | None = None
+    preview: str
+    client_id: str | None = None
+    status: str
+    accepted_at: str
+    writer_email: str | None = None
+
+
+class KnowledgeBaseDetailResult(BaseModel):
+    username: str
+    knowledge_base: KnowledgeBaseView
+    push_count: int = 0
+    recent_additions: list[RecentAdditionView] = Field(default_factory=list)
+    members: list[KnowledgeBaseMemberView] = Field(default_factory=list)
+    me: KnowledgeBaseMemberView | None = None
+
+
+class DashboardMeResult(BaseModel):
+    user_id: str
+    username: str
+    email: str | None = None
+    display_name: str | None = None
+    plan_status: str
+    mcp_url: str
+    oauth_client_id: str | None = None

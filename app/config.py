@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     email_from: str = ""
     invite_docs_url: str = ""
 
+    # Dashboard (browser) CORS + optional public Auth0 SPA client id for connect snippets.
+    dashboard_cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    dashboard_oauth_client_id: str = ""
+
     # Lemon Squeezy billing (optional until keys are set).
     lemon_squeezy_api_key: SecretStr | None = None
     lemon_squeezy_webhook_secret: SecretStr | None = None

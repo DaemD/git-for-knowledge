@@ -221,6 +221,13 @@ class ControlStore(Protocol):
         graph_id: str,
         message_ids: set[str],
     ) -> dict[str, MemoryWrite]: ...
+    async def list_recent_writes(
+        self,
+        graph_id: str,
+        *,
+        limit: int = 30,
+    ) -> list[MemoryWrite]: ...
+    async def count_writes(self, graph_id: str) -> int: ...
     async def get_graph_by_id(self, graph_id: str) -> GraphRecord | None: ...
     async def find_user_by_email(self, email: str) -> UserRecord | None: ...
     async def list_accessible_graphs(self, user_id: str) -> list[AccessibleGraph]: ...
@@ -604,6 +611,40 @@ class PostgresControlStore:
             for row in rows
             if row["nams_message_id"] is not None
         }
+
+    async def list_recent_writes(
+        self,
+        graph_id: str,
+        *,
+        limit: int = 30,
+    ) -> list[MemoryWrite]:
+        limit = max(1, min(limit, 100))
+        async with self._pool_required().acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT idempotency_key, user_id, graph_id, nams_message_id,
+                       client_id, content_hash, status, accepted_at, completed_at
+                FROM memory_writes
+                WHERE graph_id = $1
+                ORDER BY accepted_at DESC
+                LIMIT $2
+                """,
+                graph_id,
+                limit,
+            )
+        return [_memory_from_row(row) for row in rows]
+
+    async def count_writes(self, graph_id: str) -> int:
+        async with self._pool_required().acquire() as conn:
+            value = await conn.fetchval(
+                """
+                SELECT COUNT(*)::int
+                FROM memory_writes
+                WHERE graph_id = $1
+                """,
+                graph_id,
+            )
+        return int(value or 0)
 
     async def get_graph_by_id(self, graph_id: str) -> GraphRecord | None:
         async with self._pool_required().acquire() as conn:
@@ -1203,6 +1244,26 @@ class InMemoryControlStore:
             ):
                 result[write.nams_message_id] = write
         return result
+
+    async def list_recent_writes(
+        self,
+        graph_id: str,
+        *,
+        limit: int = 30,
+    ) -> list[MemoryWrite]:
+        limit = max(1, min(limit, 100))
+        rows = [
+            write
+            for write in self.memory_writes.values()
+            if write.graph_id == graph_id
+        ]
+        rows.sort(key=lambda item: item.accepted_at, reverse=True)
+        return rows[:limit]
+
+    async def count_writes(self, graph_id: str) -> int:
+        return sum(
+            1 for write in self.memory_writes.values() if write.graph_id == graph_id
+        )
 
     async def get_graph_by_id(self, graph_id: str) -> GraphRecord | None:
         return self.graphs.get(graph_id)
