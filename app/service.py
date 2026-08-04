@@ -339,31 +339,140 @@ class KnowledgeService:
         user_id: str,
         kb_id: str,
         *,
-        limit: int = 80,
+        limit: int = 300,
     ) -> KnowledgeBaseGraphResult:
-        """Return KB-scoped entity nodes + relationships for the dashboard graph."""
+        """Return the Neo4j entity subgraph for this KB's NAMS conversation.
+
+        Prefers Cypher over conversation messages (``MENTIONS``), which matches
+        how NAMS actually stores the graph — not a tiny vector-search sample.
+        """
         await self._require_entitled_user(user_id)
         graph = await self._require_kb_access(user_id, kb_id, need_write=False)
-        limit = max(10, min(limit, 150))
+        limit = max(20, min(limit, 500))
 
         messages = await self._store.list_messages(
             graph.nams_conversation_id,
-            limit=200,
+            limit=500,
         )
-        conversation_message_ids = {
+        message_ids = [
             str(getattr(message, "id", "") or "")
             for message in messages
             if getattr(message, "id", None)
-        }
-
-        candidate_queries = [
-            graph.kb_id,
-            graph.name,
-            "",
         ]
-        seen_ids: set[str] = set()
+
+        entity_rows: list[dict[str, Any]] = []
+        try:
+            entity_rows = await self._store.entities_for_conversation(
+                graph.nams_conversation_id,
+                limit=limit,
+            )
+        except Exception:
+            entity_rows = []
+
+        if not entity_rows and message_ids:
+            try:
+                entity_rows = await self._store.entities_mentioned_by_messages(
+                    message_ids,
+                    limit=limit,
+                )
+            except Exception:
+                entity_rows = []
+
+        # Last resort: broad search + provenance filter (old path).
+        if not entity_rows:
+            entity_rows = await self._graph_entities_via_search(
+                graph,
+                message_ids=set(message_ids),
+                limit=limit,
+            )
+
+        nodes: list[GraphNodeView] = []
+        seen: set[str] = set()
+        for raw in entity_rows:
+            eid = str(raw.get("id") or "")
+            if not eid or eid in seen:
+                continue
+            seen.add(eid)
+            kind = str(
+                raw.get("type")
+                or raw.get("kind")
+                or raw.get("entity_type")
+                or "concept"
+            ).lower()
+            nodes.append(
+                GraphNodeView(
+                    id=eid,
+                    label=str(raw.get("name") or raw.get("canonical_name") or eid),
+                    kind=kind,
+                    summary=str(raw.get("description") or raw.get("summary") or ""),
+                )
+            )
+
+        entity_ids = [node.id for node in nodes]
+        edges_by_id: dict[str, GraphEdgeView] = {}
+        try:
+            rel_rows = await self._store.relationships_among_entities(
+                entity_ids,
+                limit=max(limit * 2, 200),
+            )
+        except Exception:
+            rel_rows = []
+
+        for row in rel_rows:
+            source = row.get("source") or {}
+            target = row.get("target") or {}
+            source_id = str(
+                (source.get("id") if isinstance(source, dict) else None) or ""
+            )
+            target_id = str(
+                (target.get("id") if isinstance(target, dict) else None) or ""
+            )
+            if not source_id or not target_id or source_id == target_id:
+                continue
+            predicate = str(row.get("predicate") or "RELATED_TO")
+            edge_id = stable_id("edge", source_id, predicate, target_id)
+            edges_by_id.setdefault(
+                edge_id,
+                GraphEdgeView(
+                    id=edge_id,
+                    source=source_id,
+                    target=target_id,
+                    predicate=predicate,
+                ),
+            )
+            for raw, eid in ((source, source_id), (target, target_id)):
+                if eid in seen or not isinstance(raw, dict):
+                    continue
+                seen.add(eid)
+                nodes.append(
+                    GraphNodeView(
+                        id=eid,
+                        label=str(raw.get("name") or eid),
+                        kind=str(
+                            raw.get("type") or raw.get("kind") or "concept"
+                        ).lower(),
+                        summary=str(raw.get("description") or ""),
+                    )
+                )
+
+        return KnowledgeBaseGraphResult(
+            kb_id=graph.kb_id,
+            nodes=nodes,
+            edges=list(edges_by_id.values()),
+            node_count=len(nodes),
+            edge_count=len(edges_by_id),
+        )
+
+    async def _graph_entities_via_search(
+        self,
+        graph: GraphRecord,
+        *,
+        message_ids: set[str],
+        limit: int,
+    ) -> list[dict[str, Any]]:
         candidates: list[Any] = []
-        for query in candidate_queries:
+        seen_ids: set[str] = set()
+        for query in (graph.kb_id, graph.name, ""):
             try:
                 found = await self._store.search_entities(query, limit)
             except Exception:
@@ -374,100 +483,36 @@ class KnowledgeService:
                     continue
                 seen_ids.add(eid)
                 candidates.append(entity)
-
         if not candidates:
-            return KnowledgeBaseGraphResult(kb_id=graph.kb_id)
+            return []
 
         history_batches = await asyncio.gather(
-            *(
-                self._store.get_entity_history(str(entity.id))
-                for entity in candidates
-            )
+            *(self._store.get_entity_history(str(entity.id)) for entity in candidates)
         )
-        scoped_entities: list[Any] = []
+        scoped: list[Any] = []
         for entity, history in zip(candidates, history_batches, strict=True):
             if self._entity_belongs_to_kb(
                 history,
-                conversation_message_ids,
+                message_ids,
                 kb_id=graph.kb_id,
                 graph_id=graph.id,
             ):
-                scoped_entities.append(entity)
+                scoped.append(entity)
+        if not scoped:
+            scoped = candidates[:limit]
 
-        # Soft fallback: if provenance filter drops everything but we have
-        # conversation messages, still show candidates (workspace soft isolation).
-        if not scoped_entities and conversation_message_ids:
-            scoped_entities = candidates[:limit]
-
-        nodes = [
-            GraphNodeView(
-                id=view.id,
-                label=view.name,
-                kind=(view.kind or "concept").lower(),
-                summary=view.summary or "",
+        rows: list[dict[str, Any]] = []
+        for entity in scoped:
+            view = self._entity_to_view(entity)
+            rows.append(
+                {
+                    "id": view.id,
+                    "name": view.name,
+                    "type": view.kind,
+                    "description": view.summary,
+                }
             )
-            for view in (self._entity_to_view(entity) for entity in scoped_entities)
-        ]
-        node_ids = {node.id for node in nodes}
-
-        relationship_batches = (
-            await asyncio.gather(
-                *(
-                    self._store.get_relationships(str(entity.id))
-                    for entity in scoped_entities
-                )
-            )
-            if scoped_entities
-            else []
-        )
-        edges_by_id: dict[str, GraphEdgeView] = {}
-        for rows in relationship_batches:
-            for row in rows:
-                source = row.get("source") or {}
-                target = row.get("target") or {}
-                source_id = str(
-                    (source.get("id") if isinstance(source, dict) else None) or ""
-                )
-                target_id = str(
-                    (target.get("id") if isinstance(target, dict) else None) or ""
-                )
-                if not source_id or not target_id:
-                    continue
-                if source_id not in node_ids or target_id not in node_ids:
-                    continue
-                predicate = str(row.get("predicate") or "RELATED_TO")
-                edge_id = stable_id("edge", source_id, predicate, target_id)
-                edges_by_id.setdefault(
-                    edge_id,
-                    GraphEdgeView(
-                        id=edge_id,
-                        source=source_id,
-                        target=target_id,
-                        predicate=predicate,
-                    ),
-                )
-                # Ensure both ends exist as nodes even if search missed one end.
-                for raw, eid in ((source, source_id), (target, target_id)):
-                    if eid in node_ids:
-                        continue
-                    if isinstance(raw, dict):
-                        nodes.append(
-                            GraphNodeView(
-                                id=eid,
-                                label=str(raw.get("name") or eid),
-                                kind=str(raw.get("type") or raw.get("kind") or "concept").lower(),
-                                summary=str(raw.get("description") or ""),
-                            )
-                        )
-                        node_ids.add(eid)
-
-        return KnowledgeBaseGraphResult(
-            kb_id=graph.kb_id,
-            nodes=nodes,
-            edges=list(edges_by_id.values()),
-            node_count=len(nodes),
-            edge_count=len(edges_by_id),
-        )
+        return rows
 
     async def _members_for_graph(
         self,

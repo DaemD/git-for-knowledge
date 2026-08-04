@@ -122,3 +122,84 @@ class NamsStore:
 
     async def get_entity_history(self, entity_id: str) -> list[dict[str, Any]]:
         return await self._client.long_term.get_entity_history(entity_id)
+
+    async def entities_mentioned_by_messages(
+        self,
+        message_ids: list[str],
+        *,
+        limit: int = 300,
+    ) -> list[dict[str, Any]]:
+        """Return Entity properties mentioned by any of the given Message ids."""
+        if not message_ids:
+            return []
+        limit = max(1, min(limit, 500))
+        rows = await self._client.query.cypher(
+            """
+            MATCH (m:Message)-[:MENTIONS]->(e:Entity)
+            WHERE toString(m.id) IN $message_ids
+            WITH DISTINCT e
+            LIMIT $limit
+            RETURN properties(e) AS entity
+            """,
+            {"message_ids": message_ids, "limit": limit},
+        )
+        entities: list[dict[str, Any]] = []
+        for row in rows:
+            payload = row.get("entity") if isinstance(row, dict) else None
+            if isinstance(payload, dict):
+                entities.append(payload)
+        return entities
+
+    async def entities_for_conversation(
+        self,
+        conversation_id: str,
+        *,
+        limit: int = 300,
+    ) -> list[dict[str, Any]]:
+        """Return entities mentioned in a Conversation's messages."""
+        limit = max(1, min(limit, 500))
+        rows = await self._client.query.cypher(
+            """
+            MATCH (c:Conversation)-[:HAS_MESSAGE]->(m:Message)-[:MENTIONS]->(e:Entity)
+            WHERE toString(c.id) = $conversation_id
+               OR toString(c.session_id) = $conversation_id
+            WITH DISTINCT e
+            LIMIT $limit
+            RETURN properties(e) AS entity
+            """,
+            {"conversation_id": conversation_id, "limit": limit},
+        )
+        entities: list[dict[str, Any]] = []
+        for row in rows:
+            payload = row.get("entity") if isinstance(row, dict) else None
+            if isinstance(payload, dict):
+                entities.append(payload)
+        return entities
+
+    async def relationships_among_entities(
+        self,
+        entity_ids: list[str],
+        *,
+        limit: int = 500,
+    ) -> list[dict[str, Any]]:
+        """Return Entity–Entity relationships where both ends are in entity_ids."""
+        if not entity_ids:
+            return []
+        limit = max(1, min(limit, 1000))
+        rows = await self._client.query.cypher(
+            """
+            MATCH (source:Entity)-[relationship]->(target:Entity)
+            WHERE toString(source.id) IN $entity_ids
+              AND toString(target.id) IN $entity_ids
+            RETURN properties(source) AS source,
+                   properties(target) AS target,
+                   coalesce(
+                       relationship.relation_type,
+                       relationship.relationType,
+                       type(relationship)
+                   ) AS predicate
+            LIMIT $limit
+            """,
+            {"entity_ids": entity_ids, "limit": limit},
+        )
+        return [dict(row) for row in rows]
