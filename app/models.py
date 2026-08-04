@@ -152,3 +152,25 @@ class DashboardMeResult(BaseModel):
     plan_status: str
     mcp_url: str
     oauth_client_id: str | None = None
+
+
+class GraphNodeView(BaseModel):
+    id: str
+    label: str
+    kind: str = "concept"
+    summary: str = ""
+
+
+class GraphEdgeView(BaseModel):
+    id: str
+    source: str
+    target: str
+    predicate: str
+
+
+class KnowledgeBaseGraphResult(BaseModel):
+    kb_id: str
+    nodes: list[GraphNodeView] = Field(default_factory=list)
+    edges: list[GraphEdgeView] = Field(default_factory=list)
+    node_count: int = 0
+    edge_count: int = 0

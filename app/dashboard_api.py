@@ -127,6 +127,18 @@ async def api_kb_detail(request: Request) -> Response:
     return _json(result)
 
 
+async def api_kb_graph(request: Request) -> Response:
+    from app.server import runtime
+
+    assert runtime.service is not None
+    kb_id = request.path_params["kb_id"]
+    result = await runtime.service.get_knowledge_base_graph(
+        request.state.user.id,
+        kb_id,
+    )
+    return _json(result)
+
+
 async def api_invite(request: Request) -> Response:
     from app.server import runtime
 
@@ -155,6 +167,11 @@ def dashboard_routes() -> list[Route]:
         Route("/api/v1/kbs", _with_auth(api_list_kbs), methods=["GET"]),
         Route("/api/v1/kbs", _with_auth(api_create_kb), methods=["POST"]),
         Route("/api/v1/kbs/{kb_id}", _with_auth(api_kb_detail), methods=["GET"]),
+        Route(
+            "/api/v1/kbs/{kb_id}/graph",
+            _with_auth(api_kb_graph),
+            methods=["GET"],
+        ),
         Route(
             "/api/v1/kbs/{kb_id}/invites",
             _with_auth(api_invite),

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { GraphExplorer } from "@/components/GraphExplorer";
 import { apiGet, apiPost, type KbDetail, type Me } from "@/lib/api";
 
 type Tab = "recent" | "members" | "connect" | "graph";
@@ -275,13 +276,11 @@ export default function KnowledgeBaseDetailPage() {
       {tab === "graph" ? (
         <section className="panel">
           <h2>Graph explorer</h2>
-          <div className="graph-placeholder">
-            Neo4j Visualization Library view coming next
-            <br />
-            <span className="meta">
-              scoped to this knowledge base · color filters · provenance
-            </span>
-          </div>
+          {auth.token ? (
+            <GraphExplorer kbId={kbId} token={auth.token} />
+          ) : (
+            <p className="empty">Sign in required.</p>
+          )}
         </section>
       ) : null}
     </>

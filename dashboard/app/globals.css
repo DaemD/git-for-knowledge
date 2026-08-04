@@ -334,6 +334,38 @@ h2 {
   letter-spacing: 0.06em;
 }
 
+.graph-stage {
+  height: min(70vh, 560px);
+  min-height: 360px;
+  border: 1px solid var(--line);
+  background: #080808;
+  overflow: hidden;
+}
+
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin: 0 0 0.75rem;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.legend-item i {
+  width: 0.65rem;
+  height: 0.65rem;
+  display: inline-block;
+  border-radius: 1px;
+}
+
 .login-card {
   max-width: 28rem;
   margin: 12vh auto 0;
