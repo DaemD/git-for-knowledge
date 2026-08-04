@@ -9,6 +9,17 @@ import { apiGet, apiPost, type KbDetail, type Me } from "@/lib/api";
 
 type Tab = "recent" | "members" | "connect" | "graph";
 
+function formatWhen(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function KnowledgeBaseDetailPage() {
   const params = useParams<{ kbId: string }>();
   const kbId = decodeURIComponent(params.kbId);
@@ -108,13 +119,15 @@ export default function KnowledgeBaseDetailPage() {
     );
   }
 
-  if (loading) return <p className="empty">Loading knowledge base…</p>;
+  if (loading) return <p className="empty">Loading…</p>;
   if (error && !detail) {
     return (
       <>
-        <Link href="/kbs" className="meta">
-          ← all knowledge bases
-        </Link>
+        <div className="breadcrumb">
+          <Link href="/kbs">Knowledge bases</Link>
+          <span>/</span>
+          <span>{kbId}</span>
+        </div>
         <p className="error">{error}</p>
       </>
     );
@@ -122,41 +135,47 @@ export default function KnowledgeBaseDetailPage() {
   if (!detail) return null;
 
   const kb = detail.knowledge_base;
+  const memberCount = detail.members.filter((m) => m.status === "active").length;
+  const pendingCount = detail.members.filter((m) => m.status === "pending").length;
 
   return (
     <>
-      <Link href="/kbs" className="meta">
-        ← all knowledge bases
-      </Link>
-      <h1 style={{ marginTop: "0.85rem" }}>{kb.name}</h1>
-      <p className="lede">
+      <div className="breadcrumb">
+        <Link href="/kbs">Knowledge bases</Link>
+        <span>/</span>
         <span className="mono">{kb.kb_id}</span>
-        {" · "}
-        <span className="pill">{kb.role}</span>
-        {kb.shared && kb.owner_email ? <> · owner {kb.owner_email}</> : null}
-      </p>
+      </div>
 
-      <div className="stat-row">
-        <div className="stat">
-          <span className="meta">Pushes</span>
-          <strong>{detail.push_count}</strong>
+      <div className="page-header">
+        <div>
+          <h1>{kb.name}</h1>
+          <p className="page-sub">
+            <code className="mono">{kb.kb_id}</code>
+            {" · "}
+            <span className="pill">{kb.role}</span>
+            {kb.shared && kb.owner_email ? ` · Owner ${kb.owner_email}` : null}
+          </p>
         </div>
-        <div className="stat">
-          <span className="meta">Members</span>
-          <strong>{detail.members.filter((m) => m.status === "active").length}</strong>
-        </div>
-        <div className="stat">
-          <span className="meta">Pending invites</span>
-          <strong>{detail.members.filter((m) => m.status === "pending").length}</strong>
-        </div>
+      </div>
+
+      <div className="counter-row">
+        <span>
+          <strong>{detail.push_count}</strong> pushes
+        </span>
+        <span>
+          <strong>{memberCount}</strong> members
+        </span>
+        <span>
+          <strong>{pendingCount}</strong> pending invites
+        </span>
       </div>
 
       <div className="tabs" role="tablist">
         {(
           [
-            ["recent", "Recent"],
+            ["recent", "Activity"],
             ["members", "Members"],
-            ["connect", "Connect"],
+            ["connect", "Settings"],
             ["graph", "Graph"],
           ] as const
         ).map(([id, label]) => (
@@ -177,11 +196,9 @@ export default function KnowledgeBaseDetailPage() {
 
       {tab === "recent" ? (
         <section className="panel">
-          <h2>Recent additions</h2>
+          <h2 className="panel-title">Recent activity</h2>
           {detail.recent_additions.length === 0 ? (
-            <p className="empty">
-              Nothing pushed yet. From an AI tool: kb push …
-            </p>
+            <p className="empty">No pushes yet.</p>
           ) : (
             <div className="list">
               {detail.recent_additions.map((item, index) => (
@@ -190,11 +207,17 @@ export default function KnowledgeBaseDetailPage() {
                   className="list-item"
                 >
                   <p className="meta">
-                    {item.accepted_at}
+                    {formatWhen(item.accepted_at)}
                     {item.writer_email ? ` · ${item.writer_email}` : ""}
                     {item.client_id ? ` · ${item.client_id}` : ""}
                     {" · "}
-                    <span className="pill">{item.status}</span>
+                    <span
+                      className={
+                        item.status === "completed" ? "pill pill-ok" : "pill"
+                      }
+                    >
+                      {item.status}
+                    </span>
                   </p>
                   <p className="preview">{item.preview}</p>
                 </article>
@@ -206,21 +229,44 @@ export default function KnowledgeBaseDetailPage() {
 
       {tab === "members" ? (
         <section className="panel">
-          <h2>Members</h2>
-          <div className="list">
-            {detail.members.map((member) => (
-              <div key={`${member.email}-${member.status}`} className="list-item">
-                <p className="meta">
-                  {member.email} · <span className="pill">{member.role}</span>{" "}
-                  · <span className="pill">{member.status}</span>
-                </p>
-              </div>
-            ))}
+          <h2 className="panel-title">People with access</h2>
+          <div className="table-wrap" style={{ border: 0 }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.members.map((member) => (
+                  <tr key={`${member.email}-${member.status}`}>
+                    <td>{member.email}</td>
+                    <td>
+                      <span className="pill">{member.role}</span>
+                    </td>
+                    <td>
+                      <span
+                        className={
+                          member.status === "pending"
+                            ? "pill pill-warn"
+                            : "pill pill-ok"
+                        }
+                      >
+                        {member.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+
           {detail.me?.role === "owner" ? (
-            <form className="row" style={{ marginTop: "1.25rem" }} onSubmit={onInvite}>
+            <form className="row" style={{ marginTop: 16 }} onSubmit={onInvite}>
               <div className="field">
-                <label htmlFor="invite_email">invite email</label>
+                <label htmlFor="invite_email">Invite by email</label>
                 <input
                   id="invite_email"
                   type="email"
@@ -230,7 +276,7 @@ export default function KnowledgeBaseDetailPage() {
                 />
               </div>
               <div className="field">
-                <label htmlFor="invite_role">role</label>
+                <label htmlFor="invite_role">Role</label>
                 <select
                   id="invite_role"
                   value={inviteRole}
@@ -250,7 +296,7 @@ export default function KnowledgeBaseDetailPage() {
               </button>
             </form>
           ) : (
-            <p className="empty" style={{ marginTop: "1rem" }}>
+            <p className="empty" style={{ marginTop: 12 }}>
               Only the owner can invite collaborators.
             </p>
           )}
@@ -259,14 +305,13 @@ export default function KnowledgeBaseDetailPage() {
 
       {tab === "connect" ? (
         <section className="panel">
-          <h2>Connect an AI tool</h2>
-          <p className="meta" style={{ marginBottom: "0.85rem" }}>
-            Same knowledge base across assistants. MCP URL:{" "}
-            <span className="mono">{me?.mcp_url}</span>
+          <h2 className="panel-title">MCP connection</h2>
+          <p className="meta" style={{ marginBottom: 12 }}>
+            Endpoint: <code className="mono">{me?.mcp_url}</code>
           </p>
-          <div className="row" style={{ marginBottom: "0.65rem" }}>
-            <button type="button" className="btn" onClick={copySnippet}>
-              {copied ? "Copied" : "Copy Cursor snippet"}
+          <div className="row" style={{ marginBottom: 8 }}>
+            <button type="button" className="btn btn-sm" onClick={copySnippet}>
+              {copied ? "Copied" : "Copy Cursor config"}
             </button>
           </div>
           <pre className="snippet">{cursorSnippet}</pre>
@@ -275,7 +320,7 @@ export default function KnowledgeBaseDetailPage() {
 
       {tab === "graph" ? (
         <section className="panel">
-          <h2>Graph explorer</h2>
+          <h2 className="panel-title">Knowledge graph</h2>
           {auth.token ? (
             <GraphExplorer kbId={kbId} token={auth.token} />
           ) : (

@@ -110,7 +110,7 @@ export function GraphExplorer({
     <div>
       <div className="row" style={{ marginBottom: "0.85rem" }}>
         <div className="field">
-          <label htmlFor="kind_filter">Color / filter by type</label>
+          <label htmlFor="kind_filter">Filter by type</label>
           <select
             id="kind_filter"
             value={kindFilter}
@@ -118,7 +118,7 @@ export function GraphExplorer({
           >
             {kinds.map((kind) => (
               <option key={kind} value={kind}>
-                {kind}
+                {kind === "all" ? "All types" : kind}
               </option>
             ))}
           </select>
@@ -147,14 +147,14 @@ export function GraphExplorer({
       </div>
 
       {selected ? (
-        <div className="panel" style={{ marginTop: "0.85rem" }}>
-          <h2>Selected</h2>
+        <div className="panel" style={{ marginTop: 12 }}>
+          <h2 className="panel-title">Selected entity</h2>
           <p className="meta">
             <span className="pill">{selected.kind}</span>{" "}
-            <strong>{selected.label}</strong>
+            <strong style={{ color: "var(--text)" }}>{selected.label}</strong>
           </p>
-          <p className="preview" style={{ marginTop: "0.5rem" }}>
-            {selected.summary || "No summary on this entity."}
+          <p className="preview" style={{ marginTop: 8 }}>
+            {selected.summary || "No summary."}
           </p>
         </div>
       ) : null}

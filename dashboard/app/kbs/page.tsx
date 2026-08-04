@@ -27,6 +27,16 @@ function slugifyKbId(name: string): string {
   return `kb-${slug}`.slice(0, 64);
 }
 
+function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export default function KnowledgeBasesPage() {
   const auth = useAuth();
   const [me, setMe] = useState<Me | null>(null);
@@ -97,9 +107,9 @@ export default function KnowledgeBasesPage() {
   if (!auth.isAuthenticated) {
     return (
       <section className="panel login-card">
-        <h1>grphly</h1>
-        <p className="lede">
-          Sign in to view and manage your knowledge bases.
+        <h1>Sign in to grphly</h1>
+        <p className="page-sub" style={{ marginBottom: 16 }}>
+          Use your Google account to manage knowledge bases.
         </p>
         {auth.error ? <p className="error">{auth.error}</p> : null}
         <button type="button" className="btn btn-primary" onClick={auth.login}>
@@ -117,23 +127,17 @@ export default function KnowledgeBasesPage() {
 
   return (
     <>
-      <div className="row" style={{ justifyContent: "space-between" }}>
+      <div className="page-header">
         <div>
           <h1>Knowledge bases</h1>
-          <p className="lede" style={{ marginBottom: "1rem" }}>
-            All knowledge bases linked to your account load automatically.
-            {me ? (
-              <>
-                {" "}
-                Plan: <span className="mono">{me.plan_status}</span>
-              </>
-            ) : null}
+          <p className="page-sub">
+            {kbs.length} total
+            {me ? ` · Plan ${me.plan_status}` : ""}
           </p>
         </div>
         <button
           type="button"
           className="btn btn-primary"
-          style={{ alignSelf: "start" }}
           onClick={() => setShowCreate((open) => !open)}
         >
           {showCreate ? "Cancel" : "New knowledge base"}
@@ -143,10 +147,10 @@ export default function KnowledgeBasesPage() {
       {error ? <p className="error">{error}</p> : null}
 
       {showCreate ? (
-        <section className="panel" style={{ marginBottom: "1.25rem" }}>
-          <h2>New knowledge base</h2>
+        <section className="panel" style={{ marginBottom: 16 }}>
+          <h2 className="panel-title">Create knowledge base</h2>
           <form className="row" onSubmit={onCreate}>
-            <div className="field" style={{ minWidth: "min(100%, 22rem)" }}>
+            <div className="field" style={{ minWidth: "min(100%, 280px)", flex: 1 }}>
               <label htmlFor="name">Name</label>
               <input
                 id="name"
@@ -157,7 +161,7 @@ export default function KnowledgeBasesPage() {
                 autoFocus
               />
               {suggestedId ? (
-                <span className="meta mono">id: {suggestedId}</span>
+                <span className="meta mono">ID will be {suggestedId}</span>
               ) : null}
             </div>
             <button
@@ -172,29 +176,51 @@ export default function KnowledgeBasesPage() {
         </section>
       ) : null}
 
-      <section>
-        {loading ? <p className="empty">Loading your knowledge bases…</p> : null}
-        {!loading && kbs.length === 0 ? (
+      {loading ? <p className="empty">Loading…</p> : null}
+
+      {!loading && kbs.length === 0 ? (
+        <div className="flash">
           <p className="empty">
-            No knowledge bases yet. Create one, or push from an AI tool after{" "}
-            <span className="mono">kb create</span>.
+            No knowledge bases yet. Create one to get started.
           </p>
-        ) : null}
-        <div className="kb-grid">
-          {kbs.map((kb) => (
-            <Link key={kb.kb_id} href={`/kbs/${kb.kb_id}`} className="kb-card">
-              <h3>{kb.name}</h3>
-              <p className="meta mono">{kb.kb_id}</p>
-              <p className="meta" style={{ marginTop: "0.55rem" }}>
-                <span className="pill">{kb.role}</span>
-                {kb.shared && kb.owner_email ? (
-                  <> · owner {kb.owner_email}</>
-                ) : null}
-              </p>
-            </Link>
-          ))}
         </div>
-      </section>
+      ) : null}
+
+      {!loading && kbs.length > 0 ? (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>ID</th>
+                <th>Role</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {kbs.map((kb) => (
+                <tr key={kb.kb_id}>
+                  <td>
+                    <Link href={`/kbs/${kb.kb_id}`} className="kb-name">
+                      {kb.name}
+                    </Link>
+                    {kb.shared && kb.owner_email ? (
+                      <div className="meta">Owner {kb.owner_email}</div>
+                    ) : null}
+                  </td>
+                  <td>
+                    <code className="mono">{kb.kb_id}</code>
+                  </td>
+                  <td>
+                    <span className="pill">{kb.role}</span>
+                  </td>
+                  <td className="meta">{formatDate(kb.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
     </>
   );
 }
