@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     dashboard_cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     dashboard_oauth_client_id: str = ""
 
+    # Optional OpenAI for dashboard briefs / entity explainers.
+    openai_api_key: SecretStr | None = None
+    openai_model: str = "gpt-4o-mini"
+
     # Lemon Squeezy billing (optional until keys are set).
     lemon_squeezy_api_key: SecretStr | None = None
     lemon_squeezy_webhook_secret: SecretStr | None = None
@@ -86,6 +90,12 @@ class Settings(BaseSettings):
             and self.lemon_squeezy_api_key.get_secret_value()
             and str(self.lemon_squeezy_store_id).strip()
             and str(self.lemon_squeezy_variant_id).strip()
+        )
+
+    @property
+    def openai_configured(self) -> bool:
+        return bool(
+            self.openai_api_key and self.openai_api_key.get_secret_value().strip()
         )
 
     @model_validator(mode="after")

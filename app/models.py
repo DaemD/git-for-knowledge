@@ -1,5 +1,6 @@
 from datetime import datetime
 import re
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -174,3 +175,56 @@ class KnowledgeBaseGraphResult(BaseModel):
     edges: list[GraphEdgeView] = Field(default_factory=list)
     node_count: int = 0
     edge_count: int = 0
+
+
+class EntityListItem(BaseModel):
+    id: str
+    label: str
+    kind: str = "concept"
+    summary: str = ""
+    degree: int = 0
+
+
+class EntityListResult(BaseModel):
+    kb_id: str
+    entities: list[EntityListItem] = Field(default_factory=list)
+    total: int = 0
+
+
+class EntityNeighborView(BaseModel):
+    id: str
+    label: str
+    kind: str = "concept"
+    predicate: str
+    direction: str = "out"  # out | in
+
+
+class EntitySourceView(BaseModel):
+    memory_id: str | None = None
+    preview: str
+    accepted_at: str | None = None
+
+
+class EntityDetailResult(BaseModel):
+    kb_id: str
+    entity: EntityListItem
+    neighbors: list[EntityNeighborView] = Field(default_factory=list)
+    sources: list[EntitySourceView] = Field(default_factory=list)
+    brief: dict[str, Any] = Field(default_factory=dict)
+    brief_cached: bool = False
+    brief_source: str = "heuristic"  # openai | heuristic | cache
+    updated_at: str | None = None
+
+
+class KbOverviewResult(BaseModel):
+    kb_id: str
+    kb_name: str
+    push_count: int = 0
+    entity_count: int = 0
+    edge_count: int = 0
+    top_entities: list[EntityListItem] = Field(default_factory=list)
+    recent_changes: list[RecentAdditionView] = Field(default_factory=list)
+    brief: dict[str, Any] = Field(default_factory=dict)
+    brief_cached: bool = False
+    brief_source: str = "heuristic"
+    updated_at: str | None = None

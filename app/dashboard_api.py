@@ -132,9 +132,71 @@ async def api_kb_graph(request: Request) -> Response:
 
     assert runtime.service is not None
     kb_id = request.path_params["kb_id"]
+    try:
+        limit = int(request.query_params.get("limit") or "300")
+    except ValueError:
+        return _error("limit must be an integer", 400)
     result = await runtime.service.get_knowledge_base_graph(
         request.state.user.id,
         kb_id,
+        limit=limit,
+    )
+    return _json(result)
+
+
+async def api_kb_overview(request: Request) -> Response:
+    from app.server import runtime
+
+    assert runtime.service is not None
+    kb_id = request.path_params["kb_id"]
+    refresh = request.query_params.get("refresh", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    result = await runtime.service.get_knowledge_base_overview(
+        request.state.user.id,
+        kb_id,
+        refresh=refresh,
+    )
+    return _json(result)
+
+
+async def api_kb_entities(request: Request) -> Response:
+    from app.server import runtime
+
+    assert runtime.service is not None
+    kb_id = request.path_params["kb_id"]
+    q = request.query_params.get("q")
+    try:
+        limit = int(request.query_params.get("limit") or "200")
+    except ValueError:
+        return _error("limit must be an integer", 400)
+    result = await runtime.service.list_knowledge_base_entities(
+        request.state.user.id,
+        kb_id,
+        q=q,
+        limit=limit,
+    )
+    return _json(result)
+
+
+async def api_kb_entity(request: Request) -> Response:
+    from app.server import runtime
+
+    assert runtime.service is not None
+    kb_id = request.path_params["kb_id"]
+    entity_id = request.path_params["entity_id"]
+    refresh = request.query_params.get("refresh", "").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    result = await runtime.service.get_knowledge_base_entity(
+        request.state.user.id,
+        kb_id,
+        entity_id,
+        refresh=refresh,
     )
     return _json(result)
 
@@ -167,6 +229,21 @@ def dashboard_routes() -> list[Route]:
         Route("/api/v1/kbs", _with_auth(api_list_kbs), methods=["GET"]),
         Route("/api/v1/kbs", _with_auth(api_create_kb), methods=["POST"]),
         Route("/api/v1/kbs/{kb_id}", _with_auth(api_kb_detail), methods=["GET"]),
+        Route(
+            "/api/v1/kbs/{kb_id}/overview",
+            _with_auth(api_kb_overview),
+            methods=["GET"],
+        ),
+        Route(
+            "/api/v1/kbs/{kb_id}/entities",
+            _with_auth(api_kb_entities),
+            methods=["GET"],
+        ),
+        Route(
+            "/api/v1/kbs/{kb_id}/entities/{entity_id}",
+            _with_auth(api_kb_entity),
+            methods=["GET"],
+        ),
         Route(
             "/api/v1/kbs/{kb_id}/graph",
             _with_auth(api_kb_graph),

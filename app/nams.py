@@ -123,6 +123,38 @@ class NamsStore:
     async def get_entity_history(self, entity_id: str) -> list[dict[str, Any]]:
         return await self._client.long_term.get_entity_history(entity_id)
 
+    async def messages_mentioning_entity(
+        self,
+        conversation_id: str,
+        entity_id: str,
+        *,
+        limit: int = 12,
+    ) -> list[dict[str, Any]]:
+        """Return Message properties in a conversation that MENTIONS an entity."""
+        limit = max(1, min(limit, 50))
+        rows = await self._client.query.cypher(
+            """
+            MATCH (c:Conversation)-[:HAS_MESSAGE]->(m:Message)-[:MENTIONS]->(e:Entity)
+            WHERE (toString(c.id) = $conversation_id
+                   OR toString(c.session_id) = $conversation_id)
+              AND toString(e.id) = $entity_id
+            RETURN properties(m) AS message
+            ORDER BY coalesce(m.created_at, m.timestamp, m.ingested_at) DESC
+            LIMIT $limit
+            """,
+            {
+                "conversation_id": conversation_id,
+                "entity_id": entity_id,
+                "limit": limit,
+            },
+        )
+        messages: list[dict[str, Any]] = []
+        for row in rows:
+            payload = row.get("message") if isinstance(row, dict) else None
+            if isinstance(payload, dict):
+                messages.append(payload)
+        return messages
+
     async def entities_mentioned_by_messages(
         self,
         message_ids: list[str],

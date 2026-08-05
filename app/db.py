@@ -77,6 +77,22 @@ CREATE TABLE IF NOT EXISTS graph_members (
 CREATE INDEX IF NOT EXISTS graph_members_user_id_idx ON graph_members (user_id);
 CREATE INDEX IF NOT EXISTS kb_invites_email_lower_idx
     ON kb_invites (LOWER(invitee_email));
+
+CREATE TABLE IF NOT EXISTS kb_summaries (
+    graph_id TEXT PRIMARY KEY REFERENCES graphs(id) ON DELETE CASCADE,
+    input_hash TEXT NOT NULL,
+    summary_json TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS entity_summaries (
+    graph_id TEXT NOT NULL REFERENCES graphs(id) ON DELETE CASCADE,
+    entity_id TEXT NOT NULL,
+    input_hash TEXT NOT NULL,
+    summary_json TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (graph_id, entity_id)
+);
 """
 
 
@@ -276,6 +292,30 @@ class ControlStore(Protocol):
         self,
         stripe_customer_id: str,
     ) -> UserRecord | None: ...
+    async def get_kb_summary(
+        self,
+        graph_id: str,
+    ) -> tuple[str, str, datetime] | None: ...
+    async def upsert_kb_summary(
+        self,
+        graph_id: str,
+        *,
+        input_hash: str,
+        summary_json: str,
+    ) -> None: ...
+    async def get_entity_summary(
+        self,
+        graph_id: str,
+        entity_id: str,
+    ) -> tuple[str, str, datetime] | None: ...
+    async def upsert_entity_summary(
+        self,
+        graph_id: str,
+        entity_id: str,
+        *,
+        input_hash: str,
+        summary_json: str,
+    ) -> None: ...
 
 
 class PostgresControlStore:
@@ -686,6 +726,90 @@ class PostgresControlStore:
             )
         return _user_from_row(row) if row else None
 
+    async def get_kb_summary(
+        self,
+        graph_id: str,
+    ) -> tuple[str, str, datetime] | None:
+        async with self._pool_required().acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT input_hash, summary_json, updated_at
+                FROM kb_summaries
+                WHERE graph_id = $1
+                """,
+                graph_id,
+            )
+        if row is None:
+            return None
+        return str(row["input_hash"]), str(row["summary_json"]), row["updated_at"]
+
+    async def upsert_kb_summary(
+        self,
+        graph_id: str,
+        *,
+        input_hash: str,
+        summary_json: str,
+    ) -> None:
+        async with self._pool_required().acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO kb_summaries (graph_id, input_hash, summary_json, updated_at)
+                VALUES ($1, $2, $3, NOW())
+                ON CONFLICT (graph_id) DO UPDATE
+                SET input_hash = EXCLUDED.input_hash,
+                    summary_json = EXCLUDED.summary_json,
+                    updated_at = NOW()
+                """,
+                graph_id,
+                input_hash,
+                summary_json,
+            )
+
+    async def get_entity_summary(
+        self,
+        graph_id: str,
+        entity_id: str,
+    ) -> tuple[str, str, datetime] | None:
+        async with self._pool_required().acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT input_hash, summary_json, updated_at
+                FROM entity_summaries
+                WHERE graph_id = $1 AND entity_id = $2
+                """,
+                graph_id,
+                entity_id,
+            )
+        if row is None:
+            return None
+        return str(row["input_hash"]), str(row["summary_json"]), row["updated_at"]
+
+    async def upsert_entity_summary(
+        self,
+        graph_id: str,
+        entity_id: str,
+        *,
+        input_hash: str,
+        summary_json: str,
+    ) -> None:
+        async with self._pool_required().acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO entity_summaries (
+                    graph_id, entity_id, input_hash, summary_json, updated_at
+                )
+                VALUES ($1, $2, $3, $4, NOW())
+                ON CONFLICT (graph_id, entity_id) DO UPDATE
+                SET input_hash = EXCLUDED.input_hash,
+                    summary_json = EXCLUDED.summary_json,
+                    updated_at = NOW()
+                """,
+                graph_id,
+                entity_id,
+                input_hash,
+                summary_json,
+            )
+
     async def apply_stripe_subscription(
         self,
         *,
@@ -994,6 +1118,10 @@ class InMemoryControlStore:
     memory_writes: dict[str, MemoryWrite] = field(default_factory=dict)
     kb_invites: dict[str, KbInviteRecord] = field(default_factory=dict)
     graph_members: dict[str, GraphMemberRecord] = field(default_factory=dict)
+    kb_summaries: dict[str, tuple[str, str, datetime]] = field(default_factory=dict)
+    entity_summaries: dict[tuple[str, str], tuple[str, str, datetime]] = field(
+        default_factory=dict
+    )
 
     async def connect(self) -> None:
         return None
@@ -1463,6 +1591,42 @@ class InMemoryControlStore:
                 del self.graph_members[member_key]
                 revoked = True
         return revoked
+
+    async def get_kb_summary(
+        self,
+        graph_id: str,
+    ) -> tuple[str, str, datetime] | None:
+        return self.kb_summaries.get(graph_id)
+
+    async def upsert_kb_summary(
+        self,
+        graph_id: str,
+        *,
+        input_hash: str,
+        summary_json: str,
+    ) -> None:
+        self.kb_summaries[graph_id] = (input_hash, summary_json, utcnow())
+
+    async def get_entity_summary(
+        self,
+        graph_id: str,
+        entity_id: str,
+    ) -> tuple[str, str, datetime] | None:
+        return self.entity_summaries.get((graph_id, entity_id))
+
+    async def upsert_entity_summary(
+        self,
+        graph_id: str,
+        entity_id: str,
+        *,
+        input_hash: str,
+        summary_json: str,
+    ) -> None:
+        self.entity_summaries[(graph_id, entity_id)] = (
+            input_hash,
+            summary_json,
+            utcnow(),
+        )
 
 
 def _normalize_database_url(url: str) -> str:

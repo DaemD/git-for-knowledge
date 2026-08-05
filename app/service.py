@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from datetime import datetime, timezone
 from typing import Any
@@ -23,12 +24,18 @@ from app.models import (
     CreateKnowledgeBaseResult,
     DashboardMeResult,
     DeleteKnowledgeBaseResult,
+    EntityDetailResult,
+    EntityListItem,
+    EntityListResult,
+    EntityNeighborView,
+    EntitySourceView,
     EntityView,
     EvidenceView,
     GraphEdgeView,
     GraphNodeView,
     InviteToKnowledgeBaseResult,
     KB_ID_PATTERN,
+    KbOverviewResult,
     KnowledgeBaseDetailResult,
     KnowledgeBaseGraphResult,
     KnowledgeBaseListResult,
@@ -43,6 +50,11 @@ from app.models import (
     UpgradeResult,
 )
 from app.nams import NamsStore
+from app.openai_brief import (
+    OpenAINotConfiguredError,
+    generate_entity_brief,
+    generate_kb_brief,
+)
 from app.lemon_billing import (
     BillingNotConfiguredError,
     create_checkout_session,
@@ -461,6 +473,286 @@ class KnowledgeService:
             edges=list(edges_by_id.values()),
             node_count=len(nodes),
             edge_count=len(edges_by_id),
+        )
+
+    async def get_knowledge_base_overview(
+        self,
+        user_id: str,
+        kb_id: str,
+        *,
+        refresh: bool = False,
+    ) -> KbOverviewResult:
+        detail = await self.get_knowledge_base_detail(user_id, kb_id, recent_limit=8)
+        graph_pack = await self.get_knowledge_base_graph(
+            user_id,
+            kb_id,
+            limit=80,
+        )
+        ranked = _rank_entities(graph_pack.nodes, graph_pack.edges)
+        top = ranked[:12]
+        settings = get_settings()
+        graph = await self._require_kb_access(user_id, kb_id, need_write=False)
+
+        pack = {
+            "entities": [
+                {
+                    "id": item.id,
+                    "label": item.label,
+                    "kind": item.kind,
+                    "summary": item.summary[:240],
+                    "degree": item.degree,
+                }
+                for item in top
+            ],
+            "edges": [
+                {
+                    "source": edge.source,
+                    "target": edge.target,
+                    "predicate": edge.predicate,
+                }
+                for edge in graph_pack.edges[:80]
+            ],
+            "recent": [item.preview for item in detail.recent_additions],
+            "push_count": detail.push_count,
+            "entity_count": graph_pack.node_count,
+            "edge_count": graph_pack.edge_count,
+        }
+        input_hash = hash_content(str(pack))
+
+        if not refresh:
+            cached = await self._control.get_kb_summary(graph.id)
+            if cached is not None and cached[0] == input_hash:
+                brief = _loads_brief(cached[1])
+                return KbOverviewResult(
+                    kb_id=graph.kb_id,
+                    kb_name=graph.name,
+                    push_count=detail.push_count,
+                    entity_count=graph_pack.node_count,
+                    edge_count=graph_pack.edge_count,
+                    top_entities=top,
+                    recent_changes=detail.recent_additions,
+                    brief=brief,
+                    brief_cached=True,
+                    brief_source="cache",
+                    updated_at=cached[2].isoformat(),
+                )
+
+        brief_source = "heuristic"
+        try:
+            brief = await generate_kb_brief(
+                settings,
+                kb_id=graph.kb_id,
+                kb_name=graph.name,
+                entities=pack["entities"],
+                edges=pack["edges"],
+                recent_previews=pack["recent"],
+            )
+            brief_source = "openai"
+        except (OpenAINotConfiguredError, Exception):
+            brief = _heuristic_kb_brief(
+                kb_name=graph.name,
+                entities=pack["entities"],
+                edges=pack["edges"],
+                recent_previews=pack["recent"],
+            )
+
+        summary_json = json.dumps(brief, ensure_ascii=True)
+        await self._control.upsert_kb_summary(
+            graph.id,
+            input_hash=input_hash,
+            summary_json=summary_json,
+        )
+        return KbOverviewResult(
+            kb_id=graph.kb_id,
+            kb_name=graph.name,
+            push_count=detail.push_count,
+            entity_count=graph_pack.node_count,
+            edge_count=graph_pack.edge_count,
+            top_entities=top,
+            recent_changes=detail.recent_additions,
+            brief=brief,
+            brief_cached=False,
+            brief_source=brief_source,
+            updated_at=datetime.now(timezone.utc).isoformat(),
+        )
+
+    async def list_knowledge_base_entities(
+        self,
+        user_id: str,
+        kb_id: str,
+        *,
+        q: str | None = None,
+        limit: int = 200,
+    ) -> EntityListResult:
+        limit = max(1, min(limit, 500))
+        graph_pack = await self.get_knowledge_base_graph(
+            user_id,
+            kb_id,
+            limit=limit,
+        )
+        ranked = _rank_entities(graph_pack.nodes, graph_pack.edges)
+        query = (q or "").strip().lower()
+        if query:
+            ranked = [
+                item
+                for item in ranked
+                if query in item.label.lower()
+                or query in item.kind.lower()
+                or query in (item.summary or "").lower()
+            ]
+        return EntityListResult(
+            kb_id=kb_id,
+            entities=ranked[:limit],
+            total=len(ranked),
+        )
+
+    async def get_knowledge_base_entity(
+        self,
+        user_id: str,
+        kb_id: str,
+        entity_id: str,
+        *,
+        refresh: bool = False,
+    ) -> EntityDetailResult:
+        await self._require_entitled_user(user_id)
+        graph = await self._require_kb_access(user_id, kb_id, need_write=False)
+        graph_pack = await self.get_knowledge_base_graph(
+            user_id,
+            kb_id,
+            limit=200,
+        )
+        ranked = {
+            item.id: item
+            for item in _rank_entities(graph_pack.nodes, graph_pack.edges)
+        }
+        entity = ranked.get(entity_id)
+        if entity is None:
+            raise ValueError(f"Entity not found in this knowledge base: {entity_id}")
+
+        neighbors: list[EntityNeighborView] = []
+        label_by_id = {node.id: node for node in graph_pack.nodes}
+        for edge in graph_pack.edges:
+            if edge.source == entity_id and edge.target in label_by_id:
+                other = label_by_id[edge.target]
+                neighbors.append(
+                    EntityNeighborView(
+                        id=other.id,
+                        label=other.label,
+                        kind=other.kind,
+                        predicate=edge.predicate,
+                        direction="out",
+                    )
+                )
+            elif edge.target == entity_id and edge.source in label_by_id:
+                other = label_by_id[edge.source]
+                neighbors.append(
+                    EntityNeighborView(
+                        id=other.id,
+                        label=other.label,
+                        kind=other.kind,
+                        predicate=edge.predicate,
+                        direction="in",
+                    )
+                )
+        neighbors = neighbors[:24]
+
+        sources: list[EntitySourceView] = []
+        try:
+            messages = await self._store.messages_mentioning_entity(
+                graph.nams_conversation_id,
+                entity_id,
+                limit=8,
+            )
+            for message in messages:
+                mid = str(message.get("id") or "") or None
+                content = strip_memory_meta(str(message.get("content") or ""))
+                if not content:
+                    continue
+                sources.append(
+                    EntitySourceView(
+                        memory_id=mid,
+                        preview=_preview_text(content),
+                        accepted_at=str(
+                            message.get("created_at")
+                            or message.get("timestamp")
+                            or message.get("ingested_at")
+                            or ""
+                        )
+                        or None,
+                    )
+                )
+        except Exception:
+            sources = []
+
+        settings = get_settings()
+        pack = {
+            "entity": {
+                "id": entity.id,
+                "label": entity.label,
+                "kind": entity.kind,
+                "summary": entity.summary,
+                "degree": entity.degree,
+            },
+            "neighbors": [
+                {
+                    "id": n.id,
+                    "label": n.label,
+                    "kind": n.kind,
+                    "predicate": n.predicate,
+                    "direction": n.direction,
+                }
+                for n in neighbors
+            ],
+            "sources": [s.preview for s in sources],
+        }
+        input_hash = hash_content(str(pack))
+
+        if not refresh:
+            cached = await self._control.get_entity_summary(graph.id, entity_id)
+            if cached is not None and cached[0] == input_hash:
+                return EntityDetailResult(
+                    kb_id=graph.kb_id,
+                    entity=entity,
+                    neighbors=neighbors,
+                    sources=sources,
+                    brief=_loads_brief(cached[1]),
+                    brief_cached=True,
+                    brief_source="cache",
+                    updated_at=cached[2].isoformat(),
+                )
+
+        brief_source = "heuristic"
+        try:
+            brief = await generate_entity_brief(
+                settings,
+                kb_id=graph.kb_id,
+                entity=pack["entity"],
+                neighbors=pack["neighbors"],
+                source_previews=pack["sources"],
+            )
+            brief_source = "openai"
+        except (OpenAINotConfiguredError, Exception):
+            brief = _heuristic_entity_brief(
+                entity=pack["entity"],
+                neighbors=pack["neighbors"],
+                source_previews=pack["sources"],
+            )
+
+        await self._control.upsert_entity_summary(
+            graph.id,
+            entity_id,
+            input_hash=input_hash,
+            summary_json=json.dumps(brief, ensure_ascii=True),
+        )
+        return EntityDetailResult(
+            kb_id=graph.kb_id,
+            entity=entity,
+            neighbors=neighbors,
+            sources=sources,
+            brief=brief,
+            brief_cached=False,
+            brief_source=brief_source,
+            updated_at=datetime.now(timezone.utc).isoformat(),
         )
 
     async def _graph_entities_via_search(
@@ -1045,6 +1337,120 @@ def _preview_text(text: str, limit: int = 280) -> str:
     if len(cleaned) <= limit:
         return cleaned
     return cleaned[: limit - 1].rstrip() + "…"
+
+
+def _loads_brief(raw: str) -> dict[str, Any]:
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {}
+    except json.JSONDecodeError:
+        return {}
+
+
+def _rank_entities(
+    nodes: list[GraphNodeView],
+    edges: list[GraphEdgeView],
+) -> list[EntityListItem]:
+    degree: dict[str, int] = {node.id: 0 for node in nodes}
+    for edge in edges:
+        if edge.source in degree:
+            degree[edge.source] += 1
+        if edge.target in degree:
+            degree[edge.target] += 1
+    items = [
+        EntityListItem(
+            id=node.id,
+            label=node.label,
+            kind=node.kind,
+            summary=node.summary,
+            degree=degree.get(node.id, 0),
+        )
+        for node in nodes
+    ]
+    items.sort(key=lambda item: (-item.degree, item.label.lower()))
+    return items
+
+
+def _heuristic_kb_brief(
+    *,
+    kb_name: str,
+    entities: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+    recent_previews: list[str],
+) -> dict[str, Any]:
+    top_labels = [str(item.get("label") or "") for item in entities[:6] if item.get("label")]
+    summary = (
+        f"{kb_name} currently has {len(entities)} surfaced entities and "
+        f"{len(edges)} relationships. "
+    )
+    if top_labels:
+        summary += "Most connected entities include " + ", ".join(top_labels[:4]) + "."
+    else:
+        summary += "No entities have been extracted yet — push more knowledge via MCP."
+    return {
+        "summary": summary,
+        "core_facts": [
+            f"{item.get('label')} ({item.get('kind')})"
+            for item in entities[:6]
+            if item.get("label")
+        ]
+        or ["No extracted entities yet."],
+        "key_people_orgs": [
+            str(item.get("label"))
+            for item in entities
+            if str(item.get("kind") or "").lower() in {"person", "organization"}
+        ][:5]
+        or ["No people/orgs identified yet."],
+        "gaps": [
+            "OpenAI brief unavailable — showing heuristic overview.",
+            "Add richer memories mentioning key people, projects, and decisions.",
+            "Connect related concepts explicitly in future pushes.",
+        ],
+        "suggested_pushes": [
+            "Summarize the current priorities for this KB.",
+            "Capture owners and deadlines for active workstreams.",
+            "Record decisions and why they were made.",
+        ]
+        if not recent_previews
+        else [
+            "Refresh key entity descriptions after recent pushes.",
+            "Link new facts to existing people and projects.",
+            "Note open questions raised by the latest activity.",
+        ],
+    }
+
+
+def _heuristic_entity_brief(
+    *,
+    entity: dict[str, Any],
+    neighbors: list[dict[str, Any]],
+    source_previews: list[str],
+) -> dict[str, Any]:
+    label = str(entity.get("label") or "This entity")
+    kind = str(entity.get("kind") or "concept")
+    related = [
+        (
+            f"{'→' if n.get('direction') == 'out' else '←'} "
+            f"{n.get('predicate')} {n.get('label')}"
+        )
+        for n in neighbors[:5]
+    ]
+    return {
+        "headline": f"{label} is a {kind} in this knowledge base.",
+        "why_it_matters": (
+            entity.get("summary")
+            or (
+                f"Connected to {len(neighbors)} related entities"
+                + (f"; appears in {len(source_previews)} sources." if source_previews else ".")
+            )
+        ),
+        "related": related or ["No relationships surfaced yet."],
+        "open_questions": [
+            f"What role does {label} play going forward?",
+            "Which recent decisions involve this entity?",
+            "What evidence is still missing?",
+        ],
+    }
 
 
 def _kb_view(

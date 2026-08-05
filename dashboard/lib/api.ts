@@ -43,6 +43,70 @@ export type KbDetail = {
   me: Member | null;
 };
 
+export type EntityListItem = {
+  id: string;
+  label: string;
+  kind: string;
+  summary: string;
+  degree: number;
+};
+
+export type KbOverview = {
+  kb_id: string;
+  kb_name: string;
+  push_count: number;
+  entity_count: number;
+  edge_count: number;
+  top_entities: EntityListItem[];
+  recent_changes: RecentAddition[];
+  brief: {
+    summary?: string;
+    core_facts?: string[];
+    key_people_orgs?: string[];
+    gaps?: string[];
+    suggested_pushes?: string[];
+  };
+  brief_cached: boolean;
+  brief_source: string;
+  updated_at: string | null;
+};
+
+export type EntityNeighbor = {
+  id: string;
+  label: string;
+  kind: string;
+  predicate: string;
+  direction: string;
+};
+
+export type EntitySource = {
+  memory_id: string | null;
+  preview: string;
+  accepted_at: string | null;
+};
+
+export type EntityDetail = {
+  kb_id: string;
+  entity: EntityListItem;
+  neighbors: EntityNeighbor[];
+  sources: EntitySource[];
+  brief: {
+    headline?: string;
+    why_it_matters?: string;
+    related?: string[];
+    open_questions?: string[];
+  };
+  brief_cached: boolean;
+  brief_source: string;
+  updated_at: string | null;
+};
+
+export type EntityListResult = {
+  kb_id: string;
+  entities: EntityListItem[];
+  total: number;
+};
+
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
   "http://127.0.0.1:8000";

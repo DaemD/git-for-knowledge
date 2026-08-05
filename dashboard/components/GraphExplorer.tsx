@@ -43,9 +43,11 @@ const NvlCanvas = dynamic(() => import("@/components/NvlCanvas"), {
 export function GraphExplorer({
   kbId,
   token,
+  limit = 40,
 }: {
   kbId: string;
   token: string;
+  limit?: number;
 }) {
   const [data, setData] = useState<GraphPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export function GraphExplorer({
     setLoading(true);
     setError(null);
     void apiGet<GraphPayload>(
-      `/api/v1/kbs/${encodeURIComponent(kbId)}/graph`,
+      `/api/v1/kbs/${encodeURIComponent(kbId)}/graph?limit=${limit}`,
       token,
     )
       .then((payload) => {
@@ -75,7 +77,7 @@ export function GraphExplorer({
     return () => {
       cancelled = true;
     };
-  }, [kbId, token]);
+  }, [kbId, token, limit]);
 
   const kinds = useMemo(() => {
     const set = new Set((data?.nodes || []).map((n) => n.kind || "concept"));
@@ -125,6 +127,7 @@ export function GraphExplorer({
         </div>
         <p className="meta" style={{ alignSelf: "end" }}>
           {filtered.nodes.length} nodes · {filtered.edges.length} edges
+          {data.node_count > limit ? ` · capped at ${limit}` : ""}
         </p>
       </div>
 

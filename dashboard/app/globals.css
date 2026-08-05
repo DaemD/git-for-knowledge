@@ -469,9 +469,126 @@ code,
   font-weight: 600;
 }
 
+.section-label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+}
+
+.bullet-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.bullet-list li + li {
+  margin-top: 4px;
+}
+
+.entity-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.entity-chip {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: #121212;
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.entity-chip:hover {
+  border-color: #3a3a3a;
+  background: #171717;
+}
+
+.entities-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.entity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 70vh;
+  overflow: auto;
+  border-right: 1px solid var(--line);
+  padding-right: 12px;
+}
+
+.entity-row {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.entity-row:hover {
+  background: #141414;
+}
+
+.entity-row.selected {
+  border-color: var(--line);
+  background: #171717;
+}
+
+.entity-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.entity-detail {
+  min-height: 240px;
+}
+
 @media (max-width: 720px) {
   .page-header {
     flex-direction: column;
+  }
+
+  .overview-grid,
+  .entities-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .entity-list {
+    border-right: 0;
+    padding-right: 0;
+    max-height: 40vh;
   }
 
   .data-table th:nth-child(3),
