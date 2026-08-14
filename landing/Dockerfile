@@ -1,11 +1,16 @@
-FROM python:3.12-slim
-
+# Build
+FROM node:22-alpine AS build
 WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm install
+COPY . .
+RUN npm run build
 
-COPY index.html styles.css app.js ./
-
+# Serve static dist
+FROM node:22-alpine
+WORKDIR /app
+RUN npm install -g serve@14
+COPY --from=build /app/dist ./dist
 ENV PORT=8080
 EXPOSE 8080
-
-# Railway healthchecks need 0.0.0.0, not localhost-only.
-CMD ["sh", "-c", "python -m http.server \"${PORT:-8080}\" --bind 0.0.0.0"]
+CMD ["sh", "-c", "serve -s dist -l tcp://0.0.0.0:${PORT:-8080}"]

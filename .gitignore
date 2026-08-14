@@ -13,6 +13,7 @@ promo/.remotion/
 dashboard/node_modules/
 dashboard/.next/
 dashboard/.env.local
+landing/node_modules/
 *.egg-info/
 data/memory_writes.db
 data/memory_writes.db-shm

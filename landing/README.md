@@ -1,12 +1,22 @@
 # grphly landing
 
-Static marketing page. Deploy as a **separate** Railway service from the MCP API.
+Vite + React marketing site. Deploy as a **separate** Railway service from the MCP API.
 
 ## Local preview
 
 ```powershell
 cd landing
-python -m http.server 5173
+npm install
+npm run dev
+```
+
+Open http://localhost:5173
+
+## Build
+
+```powershell
+npm run build
+npm run preview
 ```
 
 ## Railway
@@ -17,3 +27,5 @@ python -m http.server 5173
 4. Deploy
 
 Do **not** point this service at the repo root; the root `Dockerfile` builds the grphly MCP API.
+
+Legacy static HTML lives in `_legacy/` for reference.

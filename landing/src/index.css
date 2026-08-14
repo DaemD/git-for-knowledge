@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-paper: #f3f5f4;
+  --color-surface: #ffffff;
+  --color-ink: #121816;
+  --color-ink-elev: #1a2220;
+  --color-line: #d5ddd9;
+  --color-line-strong: #b5c0ba;
+  --color-muted: #5c6b64;
+  --color-soft: #2a3531;
+  --color-text: #121816;
+  --color-accent: #0e7c66;
+  --color-accent-hover: #0a6352;
+  --color-accent-soft: #ddf3ec;
+  --color-good: #0e7c66;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-paper);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-accent) 28%, transparent);
+  color: var(--color-ink);
+}
+
+.atmosphere {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 45% at 15% -5%, rgba(14, 124, 102, 0.11), transparent 55%),
+    radial-gradient(ellipse 55% 40% at 95% 10%, rgba(20, 80, 70, 0.07), transparent 50%),
+    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(14, 124, 102, 0.06), transparent 55%),
+    var(--color-paper);
+}
+
+.code-chip {
+  border-radius: 0.3rem;
+  background: var(--color-accent-soft);
+  padding: 0.1rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--color-accent);
+}
+
+.terminal {
+  background: linear-gradient(180deg, #1a2421 0%, #121816 100%);
+  color: #d5e3dd;
+}
