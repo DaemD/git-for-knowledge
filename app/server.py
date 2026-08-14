@@ -1,5 +1,7 @@
 import contextlib
 import json
+import asyncio
+import logging
 from typing import Any
 
 import uvicorn
@@ -41,11 +43,14 @@ from app.lemon_billing import (
     verify_webhook_signature,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class Runtime:
     store: NamsStore | None = None
     control: ControlStore | None = None
     service: KnowledgeService | None = None
+    nams_ready: bool = False
 
 
 runtime = Runtime()
@@ -208,9 +213,14 @@ async def kb_upgrade() -> UpgradeResult:
 
 
 async def health(_: Any) -> JSONResponse:
+    nams_ok = runtime.nams_ready and (
+        runtime.store is not None and runtime.store.is_connected
+    )
+    ready = runtime.service is not None and runtime.control is not None
     return JSONResponse(
         {
-            "status": "ok" if runtime.service is not None else "starting",
+            "status": "ok" if ready else "starting",
+            "nams": "ok" if nams_ok else "unavailable",
             "service": "grphly",
             "backend": "nams",
             "endpoint": "/mcp",
@@ -240,13 +250,46 @@ async def billing_webhook(request: Request) -> Response:
     return JSONResponse({"received": True})
 
 
+async def _nams_reconnect_loop(store: NamsStore) -> None:
+    """Keep trying NAMS until it comes back after a cold-start outage."""
+    delay = 15.0
+    while not store.is_connected:
+        logger.warning("Retrying NAMS connection in background…")
+        try:
+            ok = await store.connect_with_retry(attempts=3, base_delay=2.0)
+            if ok:
+                runtime.nams_ready = True
+                logger.info("NAMS reconnected")
+                return
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("NAMS background reconnect error: %s", exc)
+        await asyncio.sleep(delay)
+        delay = min(delay * 1.2, 60.0)
+
+
 @contextlib.asynccontextmanager
 async def lifespan(_: Starlette):
     settings = get_settings()
     store = NamsStore(settings)
     control = PostgresControlStore(settings.database_url)
-    await store.connect()
+    reconnect_task: asyncio.Task[None] | None = None
+
+    # Postgres is ours — fail hard. NAMS is upstream Neo4j Labs — brief retry then degrade.
     await control.connect()
+    # Keep startup short so Railway /health can bind quickly; background loop continues.
+    nams_ok = await store.connect_with_retry(
+        attempts=5,
+        base_delay=2.0,
+        max_delay=8.0,
+    )
+    runtime.nams_ready = nams_ok
+    if not nams_ok:
+        logger.error(
+            "NAMS unavailable after retries (database_unavailable?). "
+            "Starting API in degraded mode; memory tools will fail until NAMS recovers."
+        )
+        reconnect_task = asyncio.create_task(_nams_reconnect_loop(store))
+
     runtime.store = store
     runtime.control = control
     runtime.service = KnowledgeService(store, control)
@@ -254,9 +297,14 @@ async def lifespan(_: Starlette):
         async with mcp.session_manager.run():
             yield
     finally:
+        if reconnect_task is not None:
+            reconnect_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await reconnect_task
         runtime.service = None
         runtime.control = None
         runtime.store = None
+        runtime.nams_ready = False
         await control.close()
         await store.close()
 

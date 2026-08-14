@@ -6,6 +6,9 @@ NAMS conversations inside that workspace.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import logging
 from typing import Any
 from uuid import uuid4
 
@@ -13,27 +16,74 @@ from neo4j_agent_memory import MemoryClient, MemorySettings, NamsConfig
 
 from app.config import Settings
 
+logger = logging.getLogger(__name__)
+
 
 class NamsStore:
     """Single shared-workspace MemoryClient."""
 
     def __init__(self, settings: Settings) -> None:
+        self._settings = settings
         self._workspace_id = settings.memory_workspace_id
+        self._connected = False
+        self._client = self._build_client()
+
+    def _build_client(self) -> MemoryClient:
         nams = NamsConfig(
-            endpoint=settings.memory_endpoint,
-            api_key=settings.memory_api_key,
+            endpoint=self._settings.memory_endpoint,
+            api_key=self._settings.memory_api_key,
             workspace_id=self._workspace_id,
         )
-        self._client = MemoryClient(MemorySettings(backend="nams", nams=nams))
+        return MemoryClient(MemorySettings(backend="nams", nams=nams))
 
     @property
     def workspace_id(self) -> str:
         return self._workspace_id
 
+    @property
+    def is_connected(self) -> bool:
+        return self._connected
+
     async def connect(self) -> None:
         await self._client.connect()
+        self._connected = True
+
+    async def connect_with_retry(
+        self,
+        *,
+        attempts: int = 18,
+        base_delay: float = 2.0,
+        max_delay: float = 20.0,
+    ) -> bool:
+        """Retry NAMS probe; returns False if still unavailable after attempts."""
+        delay = base_delay
+        for attempt in range(1, attempts + 1):
+            try:
+                # Fresh client each try — failed probes can leave transport half-open.
+                if attempt > 1:
+                    with contextlib.suppress(Exception):
+                        await self._client.close()
+                    self._client = self._build_client()
+                    self._connected = False
+                await self.connect()
+                if attempt > 1:
+                    logger.info("NAMS connected after %s attempts", attempt)
+                return True
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "NAMS connect failed (attempt %s/%s): %s",
+                    attempt,
+                    attempts,
+                    exc,
+                )
+                if attempt < attempts:
+                    await asyncio.sleep(delay)
+                    delay = min(delay * 1.4, max_delay)
+        self._connected = False
+        return False
 
     async def close(self) -> None:
+        self._connected = False
         await self._client.close()
 
     async def create_conversation(
