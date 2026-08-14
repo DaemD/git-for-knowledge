@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { Plus } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import {
   apiGet,
@@ -9,6 +10,35 @@ import {
   type KnowledgeBase,
   type Me,
 } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type ListResponse = {
   username: string;
@@ -101,126 +131,168 @@ export default function KnowledgeBasesPage() {
   }
 
   if (!auth.ready) {
-    return <p className="empty">Loading…</p>;
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
   }
 
   if (!auth.isAuthenticated) {
     return (
-      <section className="panel login-card">
-        <h1>Sign in to grphly</h1>
-        <p className="page-sub" style={{ marginBottom: 16 }}>
-          Use your Google account to manage knowledge bases.
-        </p>
-        {auth.error ? <p className="error">{auth.error}</p> : null}
-        <button type="button" className="btn btn-primary" onClick={auth.login}>
-          Continue with Google
-        </button>
-      </section>
+      <Card className="mx-auto mt-[12vh] max-w-md gap-4 py-8">
+        <CardHeader className="px-6">
+          <CardTitle className="font-display text-2xl">Sign in to grphly</CardTitle>
+          <CardDescription>
+            Use your Google account to manage knowledge bases.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-6">
+          {auth.error ? (
+            <p className="mb-3 text-sm text-destructive">{auth.error}</p>
+          ) : null}
+          <Button type="button" className="w-full" onClick={auth.login}>
+            Continue with Google
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
   if (!auth.token) {
-    return <p className="empty">Preparing session…</p>;
+    return <p className="text-sm text-muted-foreground">Preparing session…</p>;
   }
 
   const suggestedId = slugifyKbId(name);
 
   return (
-    <>
-      <div className="page-header">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1>Knowledge bases</h1>
-          <p className="page-sub">
-            {kbs.length} total
-            {me ? ` · Plan ${me.plan_status}` : ""}
+          <h1 className="font-display text-2xl font-semibold tracking-tight">
+            Knowledge bases
+          </h1>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>{kbs.length} total</span>
+            {me ? (
+              <Badge variant="secondary" className="capitalize">
+                Plan {me.plan_status}
+              </Badge>
+            ) : null}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setShowCreate((open) => !open)}
-        >
-          {showCreate ? "Cancel" : "New knowledge base"}
-        </button>
+
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <DialogTrigger asChild>
+            <Button type="button">
+              <Plus className="size-4" />
+              New knowledge base
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <form onSubmit={onCreate}>
+              <DialogHeader>
+                <DialogTitle>Create knowledge base</DialogTitle>
+                <DialogDescription>
+                  Pick a name — we’ll slugify an ID you can use in chat.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Acme research"
+                  required
+                  autoFocus
+                />
+                {suggestedId ? (
+                  <p className="font-mono text-xs text-muted-foreground">
+                    ID will be {suggestedId}
+                  </p>
+                ) : null}
+              </div>
+              <DialogFooter className="mt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowCreate(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={creating || !suggestedId}>
+                  {creating ? "Creating…" : "Create"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      {showCreate ? (
-        <section className="panel" style={{ marginBottom: 16 }}>
-          <h2 className="panel-title">Create knowledge base</h2>
-          <form className="row" onSubmit={onCreate}>
-            <div className="field" style={{ minWidth: "min(100%, 280px)", flex: 1 }}>
-              <label htmlFor="name">Name</label>
-              <input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Acme research"
-                required
-                autoFocus
-              />
-              {suggestedId ? (
-                <span className="meta mono">ID will be {suggestedId}</span>
-              ) : null}
-            </div>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={creating || !suggestedId}
-              style={{ alignSelf: "end" }}
-            >
-              {creating ? "Creating…" : "Create"}
-            </button>
-          </form>
-        </section>
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
       ) : null}
 
-      {loading ? <p className="empty">Loading…</p> : null}
-
       {!loading && kbs.length === 0 ? (
-        <div className="flash">
-          <p className="empty">
-            No knowledge bases yet. Create one to get started.
-          </p>
-        </div>
+        <Card className="py-10">
+          <CardContent className="px-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              No knowledge bases yet. Create one to get started.
+            </p>
+          </CardContent>
+        </Card>
       ) : null}
 
       {!loading && kbs.length > 0 ? (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>ID</th>
-                <th>Role</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
+        <Card className="gap-0 overflow-hidden py-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>ID</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Created</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {kbs.map((kb) => (
-                <tr key={kb.kb_id}>
-                  <td>
-                    <Link href={`/kbs/${kb.kb_id}`} className="kb-name">
+                <TableRow key={kb.kb_id}>
+                  <TableCell>
+                    <Link
+                      href={`/kbs/${kb.kb_id}`}
+                      className="font-semibold text-primary no-underline hover:underline"
+                    >
                       {kb.name}
                     </Link>
                     {kb.shared && kb.owner_email ? (
-                      <div className="meta">Owner {kb.owner_email}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Owner {kb.owner_email}
+                      </div>
                     ) : null}
-                  </td>
-                  <td>
-                    <code className="mono">{kb.kb_id}</code>
-                  </td>
-                  <td>
-                    <span className="pill">{kb.role}</span>
-                  </td>
-                  <td className="meta">{formatDate(kb.created_at)}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell>
+                    <code className="font-mono text-xs">{kb.kb_id}</code>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{kb.role}</Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDate(kb.created_at)}
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </Card>
       ) : null}
-    </>
+    </div>
   );
 }
