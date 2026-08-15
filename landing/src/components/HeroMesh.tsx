@@ -1,14 +1,15 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 
-type Node = { id: string; x: number; y: number; label: string };
+type Node = { id: string; x: number; y: number };
 
+/** Nodes sit low / at the sides so they don't collide with the brand + headline. */
 const NODES: Node[] = [
-  { id: "c", x: 18, y: 42, label: "Cursor" },
-  { id: "g", x: 50, y: 28, label: "grphly" },
-  { id: "l", x: 82, y: 40, label: "Claude" },
-  { id: "t", x: 62, y: 72, label: "ChatGPT" },
-  { id: "a", x: 30, y: 74, label: "Team" },
+  { id: "c", x: 12, y: 58 },
+  { id: "g", x: 50, y: 72 },
+  { id: "l", x: 88, y: 56 },
+  { id: "t", x: 72, y: 88 },
+  { id: "a", x: 28, y: 90 },
 ];
 
 const EDGES: [string, string][] = [
@@ -26,7 +27,10 @@ export function HeroMesh() {
 
   useEffect(() => {
     if (reduce) return;
-    const id = window.setInterval(() => setPulse((p) => (p + 1) % EDGES.length), 1400);
+    const id = window.setInterval(
+      () => setPulse((p) => (p + 1) % EDGES.length),
+      1400,
+    );
     return () => window.clearInterval(id);
   }, [reduce]);
 
@@ -36,11 +40,11 @@ export function HeroMesh() {
   );
 
   return (
-    <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden>
+    <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
       <svg
         viewBox="0 0 100 100"
         preserveAspectRatio="xMidYMid slice"
-        className="h-full w-full opacity-70"
+        className="h-full w-full opacity-45"
       >
         <defs>
           <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
@@ -98,34 +102,22 @@ export function HeroMesh() {
           const isHub = n.id === "g";
           const on = hover === n.id || isHub;
           return (
-            <g
-              key={n.id}
-              onMouseEnter={() => setHover(n.id)}
-              onMouseLeave={() => setHover(null)}
-              className="cursor-default"
-              style={{ pointerEvents: "all" }}
-            >
+            <g key={n.id}>
               <motion.circle
                 cx={n.x}
                 cy={n.y}
-                r={isHub ? 3.2 : 2.2}
+                r={isHub ? 2.8 : 1.8}
                 fill={isHub ? "#0e7c66" : "#ffffff"}
                 stroke={isHub ? "#0a6352" : "#b5c0ba"}
-                strokeWidth={0.35}
+                strokeWidth={0.3}
                 animate={{
-                  r: on ? (isHub ? 3.6 : 2.6) : isHub ? 3.2 : 2.2,
+                  r: on ? (isHub ? 3.1 : 2.1) : isHub ? 2.8 : 1.8,
                 }}
                 transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                onMouseEnter={() => setHover(n.id)}
+                onMouseLeave={() => setHover(null)}
+                style={{ pointerEvents: "all" }}
               />
-              <text
-                x={n.x}
-                y={n.y + (isHub ? 6.2 : 5.2)}
-                textAnchor="middle"
-                fill="#5c6b64"
-                style={{ fontSize: 2.4, fontFamily: "JetBrains Mono, monospace" }}
-              >
-                {n.label}
-              </text>
             </g>
           );
         })}
