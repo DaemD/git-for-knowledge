@@ -256,11 +256,10 @@ async def _nams_reconnect_loop(store: NamsStore) -> None:
     while not store.is_connected:
         logger.warning("Retrying NAMS connection in background…")
         try:
-            ok = await store.connect_with_retry(attempts=3, base_delay=2.0)
-            if ok:
-                runtime.nams_ready = True
-                logger.info("NAMS reconnected")
-                return
+            await store.ensure_connected()
+            runtime.nams_ready = True
+            logger.info("NAMS reconnected")
+            return
         except Exception as exc:  # noqa: BLE001
             logger.warning("NAMS background reconnect error: %s", exc)
         await asyncio.sleep(delay)

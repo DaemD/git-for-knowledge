@@ -9,7 +9,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import Any, TypeVar
 from uuid import uuid4
 
 from neo4j_agent_memory import MemoryClient, MemorySettings, NamsConfig
@@ -17,6 +18,17 @@ from neo4j_agent_memory import MemoryClient, MemorySettings, NamsConfig
 from app.config import Settings
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+def _is_disconnect_error(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return (
+        "not connected" in msg
+        or "database_unavailable" in msg
+        or "client not connected" in msg
+    )
 
 
 class NamsStore:
@@ -26,6 +38,7 @@ class NamsStore:
         self._settings = settings
         self._workspace_id = settings.memory_workspace_id
         self._connected = False
+        self._connect_lock = asyncio.Lock()
         self._client = self._build_client()
 
     def _build_client(self) -> MemoryClient:
@@ -60,16 +73,17 @@ class NamsStore:
         for attempt in range(1, attempts + 1):
             try:
                 # Fresh client each try — failed probes can leave transport half-open.
-                if attempt > 1:
-                    with contextlib.suppress(Exception):
-                        await self._client.close()
-                    self._client = self._build_client()
-                    self._connected = False
-                await self.connect()
+                with contextlib.suppress(Exception):
+                    await self._client.close()
+                self._client = self._build_client()
+                self._connected = False
+                await self._client.connect()
+                self._connected = True
                 if attempt > 1:
                     logger.info("NAMS connected after %s attempts", attempt)
                 return True
             except Exception as exc:  # noqa: BLE001
+                self._connected = False
                 logger.warning(
                     "NAMS connect failed (attempt %s/%s): %s",
                     attempt,
@@ -82,9 +96,39 @@ class NamsStore:
         self._connected = False
         return False
 
+    async def ensure_connected(self) -> None:
+        """Connect (or reconnect) before using the NAMS client."""
+        async with self._connect_lock:
+            if self._connected:
+                return
+            ok = await self.connect_with_retry(
+                attempts=4,
+                base_delay=1.0,
+                max_delay=6.0,
+            )
+            if not ok:
+                raise RuntimeError(
+                    "NAMS memory backend is unavailable "
+                    "(not connected or database_unavailable). Retry shortly."
+                )
+
+    async def _run(self, op: Callable[[], Awaitable[T]]) -> T:
+        await self.ensure_connected()
+        try:
+            return await op()
+        except Exception as exc:
+            if not _is_disconnect_error(exc):
+                raise
+            logger.warning("NAMS call lost connection; reconnecting: %s", exc)
+            async with self._connect_lock:
+                self._connected = False
+            await self.ensure_connected()
+            return await op()
+
     async def close(self) -> None:
         self._connected = False
-        await self._client.close()
+        with contextlib.suppress(Exception):
+            await self._client.close()
 
     async def create_conversation(
         self,
@@ -98,11 +142,15 @@ class NamsStore:
             "graph_name": name,
             **(metadata or {}),
         }
-        conversation = await self._client.short_term.create_conversation(
-            session_id,
-            metadata=payload,
-        )
-        return str(conversation.id or conversation.session_id or session_id)
+
+        async def _op() -> str:
+            conversation = await self._client.short_term.create_conversation(
+                session_id,
+                metadata=payload,
+            )
+            return str(conversation.id or conversation.session_id or session_id)
+
+        return await self._run(_op)
 
     async def add_memory(
         self,
@@ -117,22 +165,35 @@ class NamsStore:
         content = text
         if metadata:
             content = stamp_memory_text(text, metadata)
-        message = await self._client.short_term.add_message(
-            conversation_id=conversation_id,
-            role="user",
-            content=content,
-        )
-        return str(message.id)
+
+        async def _op() -> str:
+            message = await self._client.short_term.add_message(
+                conversation_id=conversation_id,
+                role="user",
+                content=content,
+            )
+            return str(message.id)
+
+        return await self._run(_op)
 
     async def clear_conversation(self, conversation_id: str) -> None:
         """Delete a NAMS conversation (best-effort KB cleanup)."""
-        await self._client.short_term.clear_session(conversation_id=conversation_id)
+
+        async def _op() -> None:
+            await self._client.short_term.clear_session(
+                conversation_id=conversation_id
+            )
+
+        await self._run(_op)
 
     async def get_context(self, conversation_id: str, query: str) -> str:
-        return await self._client.short_term.get_context(
-            query,
-            session_id=conversation_id,
-        )
+        async def _op() -> str:
+            return await self._client.short_term.get_context(
+                query,
+                session_id=conversation_id,
+            )
+
+        return await self._run(_op)
 
     async def list_messages(
         self,
@@ -140,38 +201,50 @@ class NamsStore:
         *,
         limit: int = 100,
     ) -> list[Any]:
-        conversation = await self._client.short_term.get_conversation(
-            conversation_id=conversation_id,
-        )
-        messages = list(getattr(conversation, "messages", None) or [])
-        if limit > 0:
-            return messages[:limit]
-        return messages
+        async def _op() -> list[Any]:
+            conversation = await self._client.short_term.get_conversation(
+                conversation_id=conversation_id,
+            )
+            messages = list(getattr(conversation, "messages", None) or [])
+            if limit > 0:
+                return messages[:limit]
+            return messages
+
+        return await self._run(_op)
 
     async def search_entities(self, query: str, limit: int) -> list[Any]:
-        return await self._client.long_term.search_entities(query, limit=limit)
+        async def _op() -> list[Any]:
+            return await self._client.long_term.search_entities(query, limit=limit)
+
+        return await self._run(_op)
 
     async def get_relationships(self, entity_id: str) -> list[dict[str, Any]]:
-        rows = await self._client.query.cypher(
-            """
-            MATCH (source:Entity)-[relationship]->(target:Entity)
-            WHERE toString(source.id) = $entity_id
-               OR toString(target.id) = $entity_id
-            RETURN properties(source) AS source,
-                   properties(target) AS target,
-                   coalesce(
-                       relationship.relation_type,
-                       relationship.relationType,
-                       type(relationship)
-                   ) AS predicate,
-                   properties(relationship) AS relationship
-            """,
-            {"entity_id": entity_id},
-        )
-        return [dict(row) for row in rows]
+        async def _op() -> list[dict[str, Any]]:
+            rows = await self._client.query.cypher(
+                """
+                MATCH (source:Entity)-[relationship]->(target:Entity)
+                WHERE toString(source.id) = $entity_id
+                   OR toString(target.id) = $entity_id
+                RETURN properties(source) AS source,
+                       properties(target) AS target,
+                       coalesce(
+                           relationship.relation_type,
+                           relationship.relationType,
+                           type(relationship)
+                       ) AS predicate,
+                       properties(relationship) AS relationship
+                """,
+                {"entity_id": entity_id},
+            )
+            return [dict(row) for row in rows]
+
+        return await self._run(_op)
 
     async def get_entity_history(self, entity_id: str) -> list[dict[str, Any]]:
-        return await self._client.long_term.get_entity_history(entity_id)
+        async def _op() -> list[dict[str, Any]]:
+            return await self._client.long_term.get_entity_history(entity_id)
+
+        return await self._run(_op)
 
     async def messages_mentioning_entity(
         self,
@@ -182,28 +255,32 @@ class NamsStore:
     ) -> list[dict[str, Any]]:
         """Return Message properties in a conversation that MENTIONS an entity."""
         limit = max(1, min(limit, 50))
-        rows = await self._client.query.cypher(
-            """
-            MATCH (c:Conversation)-[:HAS_MESSAGE]->(m:Message)-[:MENTIONS]->(e:Entity)
-            WHERE (toString(c.id) = $conversation_id
-                   OR toString(c.session_id) = $conversation_id)
-              AND toString(e.id) = $entity_id
-            RETURN properties(m) AS message
-            ORDER BY coalesce(m.created_at, m.timestamp, m.ingested_at) DESC
-            LIMIT $limit
-            """,
-            {
-                "conversation_id": conversation_id,
-                "entity_id": entity_id,
-                "limit": limit,
-            },
-        )
-        messages: list[dict[str, Any]] = []
-        for row in rows:
-            payload = row.get("message") if isinstance(row, dict) else None
-            if isinstance(payload, dict):
-                messages.append(payload)
-        return messages
+
+        async def _op() -> list[dict[str, Any]]:
+            rows = await self._client.query.cypher(
+                """
+                MATCH (c:Conversation)-[:HAS_MESSAGE]->(m:Message)-[:MENTIONS]->(e:Entity)
+                WHERE (toString(c.id) = $conversation_id
+                       OR toString(c.session_id) = $conversation_id)
+                  AND toString(e.id) = $entity_id
+                RETURN properties(m) AS message
+                ORDER BY coalesce(m.created_at, m.timestamp, m.ingested_at) DESC
+                LIMIT $limit
+                """,
+                {
+                    "conversation_id": conversation_id,
+                    "entity_id": entity_id,
+                    "limit": limit,
+                },
+            )
+            messages: list[dict[str, Any]] = []
+            for row in rows:
+                payload = row.get("message") if isinstance(row, dict) else None
+                if isinstance(payload, dict):
+                    messages.append(payload)
+            return messages
+
+        return await self._run(_op)
 
     async def entities_mentioned_by_messages(
         self,
@@ -215,22 +292,26 @@ class NamsStore:
         if not message_ids:
             return []
         limit = max(1, min(limit, 500))
-        rows = await self._client.query.cypher(
-            """
-            MATCH (m:Message)-[:MENTIONS]->(e:Entity)
-            WHERE toString(m.id) IN $message_ids
-            WITH DISTINCT e
-            LIMIT $limit
-            RETURN properties(e) AS entity
-            """,
-            {"message_ids": message_ids, "limit": limit},
-        )
-        entities: list[dict[str, Any]] = []
-        for row in rows:
-            payload = row.get("entity") if isinstance(row, dict) else None
-            if isinstance(payload, dict):
-                entities.append(payload)
-        return entities
+
+        async def _op() -> list[dict[str, Any]]:
+            rows = await self._client.query.cypher(
+                """
+                MATCH (m:Message)-[:MENTIONS]->(e:Entity)
+                WHERE toString(m.id) IN $message_ids
+                WITH DISTINCT e
+                LIMIT $limit
+                RETURN properties(e) AS entity
+                """,
+                {"message_ids": message_ids, "limit": limit},
+            )
+            entities: list[dict[str, Any]] = []
+            for row in rows:
+                payload = row.get("entity") if isinstance(row, dict) else None
+                if isinstance(payload, dict):
+                    entities.append(payload)
+            return entities
+
+        return await self._run(_op)
 
     async def entities_for_conversation(
         self,
@@ -240,23 +321,27 @@ class NamsStore:
     ) -> list[dict[str, Any]]:
         """Return entities mentioned in a Conversation's messages."""
         limit = max(1, min(limit, 500))
-        rows = await self._client.query.cypher(
-            """
-            MATCH (c:Conversation)-[:HAS_MESSAGE]->(m:Message)-[:MENTIONS]->(e:Entity)
-            WHERE toString(c.id) = $conversation_id
-               OR toString(c.session_id) = $conversation_id
-            WITH DISTINCT e
-            LIMIT $limit
-            RETURN properties(e) AS entity
-            """,
-            {"conversation_id": conversation_id, "limit": limit},
-        )
-        entities: list[dict[str, Any]] = []
-        for row in rows:
-            payload = row.get("entity") if isinstance(row, dict) else None
-            if isinstance(payload, dict):
-                entities.append(payload)
-        return entities
+
+        async def _op() -> list[dict[str, Any]]:
+            rows = await self._client.query.cypher(
+                """
+                MATCH (c:Conversation)-[:HAS_MESSAGE]->(m:Message)-[:MENTIONS]->(e:Entity)
+                WHERE toString(c.id) = $conversation_id
+                   OR toString(c.session_id) = $conversation_id
+                WITH DISTINCT e
+                LIMIT $limit
+                RETURN properties(e) AS entity
+                """,
+                {"conversation_id": conversation_id, "limit": limit},
+            )
+            entities: list[dict[str, Any]] = []
+            for row in rows:
+                payload = row.get("entity") if isinstance(row, dict) else None
+                if isinstance(payload, dict):
+                    entities.append(payload)
+            return entities
+
+        return await self._run(_op)
 
     async def relationships_among_entities(
         self,
@@ -268,20 +353,24 @@ class NamsStore:
         if not entity_ids:
             return []
         limit = max(1, min(limit, 1000))
-        rows = await self._client.query.cypher(
-            """
-            MATCH (source:Entity)-[relationship]->(target:Entity)
-            WHERE toString(source.id) IN $entity_ids
-              AND toString(target.id) IN $entity_ids
-            RETURN properties(source) AS source,
-                   properties(target) AS target,
-                   coalesce(
-                       relationship.relation_type,
-                       relationship.relationType,
-                       type(relationship)
-                   ) AS predicate
-            LIMIT $limit
-            """,
-            {"entity_ids": entity_ids, "limit": limit},
-        )
-        return [dict(row) for row in rows]
+
+        async def _op() -> list[dict[str, Any]]:
+            rows = await self._client.query.cypher(
+                """
+                MATCH (source:Entity)-[relationship]->(target:Entity)
+                WHERE toString(source.id) IN $entity_ids
+                  AND toString(target.id) IN $entity_ids
+                RETURN properties(source) AS source,
+                       properties(target) AS target,
+                       coalesce(
+                           relationship.relation_type,
+                           relationship.relationType,
+                           type(relationship)
+                       ) AS predicate
+                LIMIT $limit
+                """,
+                {"entity_ids": entity_ids, "limit": limit},
+            )
+            return [dict(row) for row in rows]
+
+        return await self._run(_op)
