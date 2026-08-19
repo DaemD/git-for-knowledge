@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { ProductVideo } from "./components/ProductVideo";
-import { AmnesiaDemo } from "./components/AmnesiaDemo";
 import { ConnectSection } from "./components/ConnectSection";
 import { ExamplesTabs } from "./components/ExamplesTabs";
 import { GradientMesh } from "./components/GradientMesh";
@@ -78,7 +77,10 @@ export default function App() {
                 Learn more
               </ButtonLink>
             </div>
-            <ProductVideo />
+            <ProductVideo
+              src="/hero-composite.mp4"
+              label="Floating product composite: push in an IDE, graph in the center, fetch in another assistant"
+            />
           </div>
         </section>
 
@@ -96,7 +98,10 @@ export default function App() {
             }
             lede="Context windows reset. New chats wipe the slate. Docs rot in Notion. Slack threads die."
           />
-          <AmnesiaDemo />
+          <ProductVideo
+            src="/amnesia-split.mp4"
+            label="Split-screen comparison: assistants with amnesia versus a shared knowledge graph"
+          />
           <div className="mx-auto mt-12 grid max-w-[980px] gap-6 text-left md:grid-cols-2">
             <div className="card-shadow rounded-lg border border-hairline bg-canvas p-8">
               <strong className="text-[18px] font-light tracking-normal">
@@ -276,18 +281,11 @@ export default function App() {
             }
             lede="No dashboard homework. Push knowledge like you push code."
           />
-          <div className="mx-auto mt-12 grid max-w-[980px] gap-6 md:grid-cols-2">
-            <pre className="mockup-shadow overflow-x-auto rounded-xl bg-brand-dark-900 p-6 font-mono text-[13px] leading-relaxed tracking-normal text-body-muted">
-              <code>{`kb list
-kb create <id> [name]
-kb use <id>
-kb push <text>
-kb fetch <question>
-kb invite <email> [read|write]
-kb members
-kb revoke <email>
-kb delete <id>`}</code>
-            </pre>
+          <ProductVideo
+            src="/commands-dashboard.mp4"
+            label="Dashboard mockup: commands, entity table, and knowledge graph"
+          />
+          <div className="mx-auto mt-10 max-w-[980px]">
             <div className="card-shadow space-y-1 rounded-lg border border-hairline bg-canvas p-4 text-[15px]">
               {[
                 ["kb push", "store summaries, decisions, research dumps"],
