@@ -20,7 +20,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[11px] text-white/70 transition-colors hover:border-accent/50 hover:text-white"
+      className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[11px] tracking-normal text-body-muted"
       onClick={async () => {
         await navigator.clipboard.writeText(text);
         setCopied(true);
@@ -35,7 +35,7 @@ function CopyButton({ text }: { text: string }) {
 
 function Snippet({ label, text }: { label: string; text: string }) {
   return (
-    <div className="terminal mt-4 overflow-hidden rounded-xl border border-white/10">
+    <div className="terminal mt-4 overflow-hidden rounded-[18px]">
       <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
         <span className="font-mono text-[11px] text-white/45">{label}</span>
         <CopyButton text={text} />
@@ -119,25 +119,25 @@ export function ConnectSection() {
   const panel = STEPS[client];
 
   return (
-    <section id="connect" className="scroll-mt-24 px-5 py-24">
-      <div className="mx-auto max-w-3xl text-center">
-        <p className="font-mono text-xs font-medium uppercase tracking-[0.18em] text-accent">
+    <section id="connect" className="tile-pad scroll-mt-11 bg-canvas">
+      <div className="mx-auto max-w-[680px] text-center">
+        <p className="text-[21px] font-semibold tracking-[0.231px] text-ink-muted-80">
           Setup
         </p>
-        <h2 className="mt-3 font-display text-4xl font-semibold leading-tight text-ink md:text-5xl">
+        <h2 className="mt-2 text-[40px] font-semibold leading-[1.1] tracking-tight text-ink max-md:text-[34px]">
           Connect your AI.
           <br />
           Start pushing today.
         </h2>
-        <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted">
+        <p className="mx-auto mt-5 max-w-xl text-[17px] leading-[1.47] text-ink-muted-80">
           Same endpoint everywhere. Pick your client, paste the snippet
           (includes the OAuth client id), sign in with Google — then run{" "}
           <code className="code-chip">kb push</code> on the first fact you’re
           tired of repeating.
         </p>
-        <p className="mx-auto mt-6 max-w-xl rounded-xl border border-line bg-surface px-4 py-3 text-sm text-soft shadow-sm">
+        <p className="mx-auto mt-6 max-w-xl rounded-[18px] border border-hairline bg-parchment px-4 py-3 text-[14px] text-ink">
           OAuth client id (Auth0 native / MCP clients):{" "}
-          <code className="font-mono text-accent">{OAUTH_CLIENT_ID}</code>
+          <code className="font-mono tracking-normal text-primary">{OAUTH_CLIENT_ID}</code>
         </p>
       </div>
 
@@ -153,10 +153,10 @@ export function ConnectSection() {
             role="tab"
             aria-selected={client === c.id}
             onClick={() => setClient(c.id)}
-            className={`rounded-full border px-3.5 py-2 font-mono text-xs transition-colors ${
+            className={`rounded-full border-2 px-4 py-2 text-[14px] tracking-[-0.224px] ${
               client === c.id
-                ? "border-accent bg-accent text-white"
-                : "border-line bg-surface text-muted hover:border-line-strong hover:text-ink"
+                ? "border-primary-focus bg-canvas text-ink"
+                : "border-hairline bg-canvas text-ink"
             }`}
           >
             {c.label}
@@ -171,10 +171,10 @@ export function ConnectSection() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.2 }}
-          className="mx-auto mt-8 max-w-3xl rounded-2xl border border-line bg-surface p-6 text-left shadow-[0_24px_60px_-36px_rgba(11,18,32,0.4)]"
+          className="mx-auto mt-8 max-w-3xl rounded-[18px] border border-hairline bg-canvas p-6 text-left"
           role="tabpanel"
         >
-          <ol className="list-decimal space-y-2.5 pl-5 text-sm leading-relaxed text-soft [&_code]:code-chip">
+          <ol className="list-decimal space-y-2.5 pl-5 text-[17px] leading-[1.47] text-ink [&_code]:code-chip">
             {panel.steps.map((step, i) => (
               <li key={i}>{step}</li>
             ))}

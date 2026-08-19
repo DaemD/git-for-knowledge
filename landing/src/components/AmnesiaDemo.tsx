@@ -36,9 +36,9 @@ export function AmnesiaDemo() {
       {PANES.map((label, i) => (
         <div
           key={label}
-          className="relative overflow-hidden rounded-xl border border-line bg-surface px-4 py-5 shadow-[0_12px_40px_-28px_rgba(11,18,32,0.45)]"
+          className="relative overflow-hidden rounded-[18px] border border-hairline bg-canvas px-4 py-5"
         >
-          <div className="mb-3 font-mono text-[11px] uppercase tracking-wider text-muted">
+          <div className="mb-3 text-[12px] tracking-[-0.12px] text-ink-muted-48">
             {label}
           </div>
           <AnimatePresence mode="wait">
@@ -49,7 +49,7 @@ export function AmnesiaDemo() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, filter: "blur(5px)", y: -4 }}
                 transition={{ duration: 0.35, delay: i * 0.08 }}
-                className="text-sm text-soft"
+                className="text-[17px] text-ink"
               >
                 We use Postgres for the auth service…
               </motion.p>
@@ -58,7 +58,7 @@ export function AmnesiaDemo() {
                 key="cleared"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="font-mono text-xs font-medium text-accent"
+                className="text-[14px] font-semibold text-primary"
               >
                 context cleared
               </motion.p>
@@ -67,7 +67,7 @@ export function AmnesiaDemo() {
           {cleared ? (
             <motion.div
               layoutId={`wipe-${label}`}
-              className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-accent-soft/80 to-transparent"
+              className="pointer-events-none absolute inset-y-0 w-1/3 bg-parchment"
               initial={{ x: "-100%" }}
               animate={{ x: "100%" }}
               transition={{ duration: 0.7 }}

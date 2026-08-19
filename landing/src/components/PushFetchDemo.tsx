@@ -63,7 +63,7 @@ export function PushFetchDemo() {
       initial={{ opacity: 0, y: 28 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2, duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-      className="terminal relative mx-auto mt-12 w-full max-w-4xl overflow-hidden rounded-2xl border border-white/10 shadow-[0_40px_80px_-30px_rgba(11,18,32,0.55)]"
+      className="product-shadow relative mx-auto w-full max-w-4xl overflow-hidden rounded-[18px] bg-tile-3"
       aria-label="Live demo: push in Cursor, fetch in Claude"
     >
       <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
@@ -79,7 +79,7 @@ export function PushFetchDemo() {
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            className="ml-auto rounded-md bg-white/5 px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider text-[#7dceb8]"
+            className="ml-auto rounded-md bg-white/5 px-2 py-0.5 font-mono text-[11px] tracking-normal text-primary-on-dark"
           >
             {phase === "push"
               ? "writing"
@@ -92,10 +92,10 @@ export function PushFetchDemo() {
 
       {/* Sync beam */}
       <div className="pointer-events-none absolute left-1/2 top-14 hidden h-[calc(100%-3.5rem)] w-px -translate-x-1/2 md:block">
-        <div className="h-full w-full bg-gradient-to-b from-transparent via-white/15 to-transparent" />
+        <div className="h-full w-px bg-white/15" />
         {!reduce && (phase === "push" || phase === "fetch") ? (
           <motion.div
-            className="absolute left-1/2 size-2 -translate-x-1/2 rounded-full bg-accent shadow-[0_0_16px_#0e7c66]"
+            className="absolute left-1/2 size-2 -translate-x-1/2 rounded-full bg-primary-on-dark"
             animate={{
               top: phase === "push" ? ["10%", "70%"] : ["70%", "10%"],
               opacity: [0, 1, 1, 0],
@@ -127,7 +127,7 @@ function Pane({
 }) {
   return (
     <motion.div
-      animate={{ backgroundColor: active ? "rgba(14,124,102,0.12)" : "rgba(0,0,0,0)" }}
+      animate={{ backgroundColor: active ? "rgba(41,151,255,0.12)" : "rgba(0,0,0,0)" }}
       className="border-white/10 p-5 md:border-r md:last:border-r-0"
     >
       <div className="mb-3 flex items-center justify-between">
@@ -136,12 +136,12 @@ function Pane({
         </div>
         <motion.span
           animate={{ scale: active ? 1 : 0.85, opacity: active ? 1 : 0.35 }}
-          className="size-1.5 rounded-full bg-[#7dceb8]"
+          className="size-1.5 rounded-full bg-primary-on-dark"
         />
       </div>
       <pre className="min-h-[8rem] whitespace-pre-wrap font-mono text-[12.5px] leading-relaxed text-[#c9d3e4]">
         {body}
-        <span className="animate-pulse text-accent">▍</span>
+        <span className="animate-pulse text-primary-on-dark">▍</span>
       </pre>
     </motion.div>
   );
