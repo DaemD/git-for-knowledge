@@ -64,10 +64,10 @@ export function ExamplesTabs() {
             role="tab"
             aria-selected={active === i}
             onClick={() => setActive(i)}
-            className={`rounded-full border-2 px-4 py-2 text-left text-[14px] tracking-[-0.224px] ${
+            className={`rounded-full px-4 py-2 text-left text-[14px] font-normal ${
               active === i
-                ? "border-primary-focus bg-canvas text-ink"
-                : "border-hairline bg-canvas text-ink"
+                ? "bg-primary-bg-subdued-hover text-primary-deep"
+                : "border border-hairline bg-canvas text-ink-mute"
             }`}
           >
             {item.h.split("→")[0].trim()}
@@ -83,13 +83,15 @@ export function ExamplesTabs() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.25 }}
-          className="mt-5 overflow-hidden rounded-[18px] border border-hairline bg-canvas"
+          className="mockup-shadow mt-5 overflow-hidden rounded-xl border border-hairline bg-canvas"
         >
-          <div className="border-b border-hairline px-5 py-4">
-            <h3 className="text-[17px] font-semibold tracking-[-0.374px] text-ink">{ex.h}</h3>
-            <p className="mt-1.5 text-[17px] leading-[1.47] text-ink-muted-80">{ex.p}</p>
+          <div className="border-b border-hairline px-6 py-4">
+            <h3 className="text-[18px] font-light text-ink">{ex.h}</h3>
+            <p className="mt-1.5 text-[15px] font-light leading-[1.4] text-ink-secondary">
+              {ex.p}
+            </p>
           </div>
-          <pre className="terminal overflow-x-auto p-5 font-mono text-[12.5px] leading-relaxed text-[#c9d3e4]">
+          <pre className="terminal overflow-x-auto p-5 font-mono text-[12.5px] leading-relaxed text-[#d7dce8]">
             <code>{ex.code}</code>
           </pre>
         </motion.article>

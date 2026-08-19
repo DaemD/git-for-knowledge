@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Copy } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   OAUTH_CLIENT_ID,
   SNIPPETS,
@@ -20,7 +20,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 font-mono text-[11px] tracking-normal text-body-muted"
+      className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 font-mono text-[11px] tracking-normal text-body-muted"
       onClick={async () => {
         await navigator.clipboard.writeText(text);
         setCopied(true);
@@ -35,7 +35,7 @@ function CopyButton({ text }: { text: string }) {
 
 function Snippet({ label, text }: { label: string; text: string }) {
   return (
-    <div className="terminal mt-4 overflow-hidden rounded-[18px]">
+    <div className="mockup-shadow terminal mt-4 overflow-hidden rounded-xl">
       <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
         <span className="font-mono text-[11px] text-white/45">{label}</span>
         <CopyButton text={text} />
@@ -50,9 +50,9 @@ function Snippet({ label, text }: { label: string; text: string }) {
 const STEPS: Record<
   ClientId,
   {
-    steps: React.ReactNode[];
+    steps: ReactNode[];
     snippets: { label: string; key: keyof typeof SNIPPETS }[];
-    note?: React.ReactNode;
+    note?: ReactNode;
   }
 > = {
   cursor: {
@@ -119,23 +119,23 @@ export function ConnectSection() {
   const panel = STEPS[client];
 
   return (
-    <section id="connect" className="tile-pad scroll-mt-11 bg-canvas">
-      <div className="mx-auto max-w-[680px] text-center">
-        <p className="text-[21px] font-semibold tracking-[0.231px] text-ink-muted-80">
+    <section id="connect" className="tile-pad scroll-mt-14 bg-canvas-soft">
+      <div className="mx-auto max-w-[720px] text-center">
+        <p className="text-[10px] font-normal uppercase tracking-[0.1px] text-primary-deep">
           Setup
         </p>
-        <h2 className="mt-2 text-[40px] font-semibold leading-[1.1] tracking-tight text-ink max-md:text-[34px]">
+        <h2 className="mt-3 text-[48px] font-light leading-[1.15] tracking-[-0.96px] text-ink max-md:text-[32px]">
           Connect your AI.
           <br />
           Start pushing today.
         </h2>
-        <p className="mx-auto mt-5 max-w-xl text-[17px] leading-[1.47] text-ink-muted-80">
+        <p className="mx-auto mt-5 max-w-xl text-[16px] font-light leading-[1.4] text-ink-secondary">
           Same endpoint everywhere. Pick your client, paste the snippet
           (includes the OAuth client id), sign in with Google — then run{" "}
           <code className="code-chip">kb push</code> on the first fact you’re
           tired of repeating.
         </p>
-        <p className="mx-auto mt-6 max-w-xl rounded-[18px] border border-hairline bg-parchment px-4 py-3 text-[14px] text-ink">
+        <p className="card-shadow mx-auto mt-6 max-w-xl rounded-lg border border-hairline bg-canvas px-4 py-3 text-[13px] text-ink">
           OAuth client id (Auth0 native / MCP clients):{" "}
           <code className="font-mono tracking-normal text-primary">{OAUTH_CLIENT_ID}</code>
         </p>
@@ -153,10 +153,10 @@ export function ConnectSection() {
             role="tab"
             aria-selected={client === c.id}
             onClick={() => setClient(c.id)}
-            className={`rounded-full border-2 px-4 py-2 text-[14px] tracking-[-0.224px] ${
+            className={`rounded-full px-4 py-2 text-[14px] font-normal ${
               client === c.id
-                ? "border-primary-focus bg-canvas text-ink"
-                : "border-hairline bg-canvas text-ink"
+                ? "bg-primary-bg-subdued-hover text-primary-deep"
+                : "border border-hairline bg-canvas text-ink-mute"
             }`}
           >
             {c.label}
@@ -171,16 +171,16 @@ export function ConnectSection() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.2 }}
-          className="mx-auto mt-8 max-w-3xl rounded-[18px] border border-hairline bg-canvas p-6 text-left"
+          className="card-shadow mx-auto mt-8 max-w-3xl rounded-lg border border-hairline bg-canvas p-8 text-left"
           role="tabpanel"
         >
-          <ol className="list-decimal space-y-2.5 pl-5 text-[17px] leading-[1.47] text-ink [&_code]:code-chip">
+          <ol className="list-decimal space-y-2.5 pl-5 text-[15px] font-light leading-[1.4] text-ink [&_code]:code-chip">
             {panel.steps.map((step, i) => (
               <li key={i}>{step}</li>
             ))}
           </ol>
           {panel.note ? (
-            <p className="mt-4 text-sm text-muted">{panel.note}</p>
+            <p className="mt-4 text-[13px] text-ink-mute">{panel.note}</p>
           ) : null}
           {panel.snippets.map((s) => (
             <Snippet key={s.key} label={s.label} text={SNIPPETS[s.key]} />

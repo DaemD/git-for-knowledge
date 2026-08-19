@@ -1,3 +1,5 @@
+import { ButtonLink } from "./ui/Button";
+
 const links = [
   { href: "#why", label: "Why" },
   { href: "#examples", label: "Examples" },
@@ -8,31 +10,28 @@ const links = [
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 h-11 bg-void text-on-dark">
-      <div className="mx-auto flex h-full max-w-[980px] items-center justify-between gap-4 px-5">
+    <header className="sticky top-0 z-50 border-b border-hairline/80 bg-canvas/80 backdrop-blur-md">
+      <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-4 px-6">
         <a
           href="#"
-          className="text-[12px] font-normal tracking-[-0.12px] text-on-dark no-underline hover:no-underline"
+          className="text-[15px] font-normal tracking-normal text-ink no-underline hover:no-underline"
         >
           grphly
         </a>
-        <nav className="hidden items-center gap-5 md:flex">
+        <nav className="hidden items-center gap-6 md:flex">
           {links.map((l) => (
             <a
               key={l.href}
               href={l.href}
-              className="text-[12px] font-normal tracking-[-0.12px] text-on-dark no-underline hover:text-body-muted hover:no-underline"
+              className="text-[15px] font-light text-ink-mute-2 no-underline hover:text-ink hover:no-underline"
             >
               {l.label}
             </a>
           ))}
         </nav>
-        <a
-          href="#connect"
-          className="rounded-[8px] bg-ink px-[15px] py-2 text-[14px] font-normal tracking-[-0.224px] text-on-dark no-underline hover:no-underline active:scale-95"
-        >
+        <ButtonLink href="#connect" className="text-[14px]">
           Connect
-        </a>
+        </ButtonLink>
       </div>
     </header>
   );
