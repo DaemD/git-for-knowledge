@@ -143,7 +143,7 @@ export default function KnowledgeBasesPage() {
     return (
       <Card className="mx-auto mt-[12vh] max-w-md gap-4 py-8">
         <CardHeader className="px-6">
-          <CardTitle className="font-display text-2xl">Sign in to grphly</CardTitle>
+          <CardTitle className="font-display text-[26px]">Sign in to grphly</CardTitle>
           <CardDescription>
             Use your Google account to manage knowledge bases.
           </CardDescription>
@@ -170,7 +170,7 @@ export default function KnowledgeBasesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">
+          <h1 className="font-display text-[26px] font-light tracking-[-0.26px]">
             Knowledge bases
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -268,7 +268,7 @@ export default function KnowledgeBasesPage() {
                   <TableCell>
                     <Link
                       href={`/kbs/${kb.kb_id}`}
-                      className="font-semibold text-primary no-underline hover:underline"
+                      className="font-normal text-primary no-underline hover:underline"
                     >
                       {kb.name}
                     </Link>

@@ -342,7 +342,7 @@ export default function KnowledgeBaseDetailPage() {
       </Breadcrumb>
 
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">
+        <h1 className="font-display text-[26px] font-light tracking-[-0.26px]">
           {kb.name}
         </h1>
         <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -837,7 +837,7 @@ export default function KnowledgeBaseDetailPage() {
               <Button type="button" variant="outline" size="sm" onClick={copySnippet}>
                 {copied ? "Copied" : "Copy Cursor config"}
               </Button>
-              <pre className="overflow-auto rounded-lg border border-border bg-[#121816] p-4 font-mono text-xs leading-relaxed text-[#d5e3dd]">
+              <pre className="overflow-auto rounded-xl border border-border bg-[#1c1e54] p-4 font-mono text-xs leading-relaxed text-[#c4c8e0]">
                 {cursorSnippet}
               </pre>
             </CardContent>

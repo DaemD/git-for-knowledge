@@ -38,12 +38,12 @@ type GraphPayload = {
 };
 
 const KIND_COLORS: Record<string, string> = {
-  person: "#0e7c66",
-  organization: "#3d8b6e",
-  location: "#5c6b64",
-  concept: "#2a9d8f",
-  tool: "#52796f",
-  custom: "#84a98c",
+  person: "#533afd",
+  organization: "#4434d4",
+  location: "#64748d",
+  concept: "#665efd",
+  tool: "#ea2261",
+  custom: "#f96bee",
 };
 
 const NvlCanvas = dynamic(() => import("@/components/NvlCanvas"), {

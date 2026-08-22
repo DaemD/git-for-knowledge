@@ -4,6 +4,7 @@ import { ConnectSection } from "./components/ConnectSection";
 import { ExamplesTabs } from "./components/ExamplesTabs";
 import { GradientMesh } from "./components/GradientMesh";
 import { Header } from "./components/Header";
+import { HeroLattice } from "./components/HeroLattice";
 import { PushFetchDemo } from "./components/PushFetchDemo";
 import { ToolsStrip } from "./components/ToolsStrip";
 import { ButtonLink } from "./components/ui/Button";
@@ -77,10 +78,7 @@ export default function App() {
                 Learn more
               </ButtonLink>
             </div>
-            <ProductVideo
-              src="/hero-composite.mp4"
-              label="Floating product composite: push in an IDE, graph in the center, fetch in another assistant"
-            />
+            <HeroLattice />
           </div>
         </section>
 

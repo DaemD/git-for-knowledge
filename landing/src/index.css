@@ -106,3 +106,30 @@ body {
     padding: 64px 20px;
   }
 }
+
+.hero-pulse-a,
+.hero-pulse-b {
+  stroke-dasharray: 18 46;
+  stroke-dashoffset: 0;
+}
+
+.hero-pulse-a {
+  animation: hero-dash 2.8s linear infinite;
+}
+
+.hero-pulse-b {
+  animation: hero-dash 3.6s linear infinite reverse;
+}
+
+@keyframes hero-dash {
+  to {
+    stroke-dashoffset: -128;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-pulse-a,
+  .hero-pulse-b {
+    animation: none;
+  }
+}

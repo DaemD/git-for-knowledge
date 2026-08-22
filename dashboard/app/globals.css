@@ -1,40 +1,42 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
+  --font-display: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  --color-background: #f3f5f4;
-  --color-foreground: #121816;
+  --color-background: #f6f9fc;
+  --color-foreground: #0d253d;
   --color-card: #ffffff;
-  --color-card-foreground: #121816;
+  --color-card-foreground: #0d253d;
   --color-popover: #ffffff;
-  --color-popover-foreground: #121816;
-  --color-primary: #0e7c66;
+  --color-popover-foreground: #0d253d;
+  --color-primary: #533afd;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #e8eeeb;
-  --color-secondary-foreground: #121816;
-  --color-muted: #e8eeeb;
-  --color-muted-foreground: #5c6b64;
-  --color-accent: #ddf3ec;
-  --color-accent-foreground: #0a6352;
-  --color-destructive: #c45c5c;
-  --color-border: #d5ddd9;
-  --color-input: #d5ddd9;
-  --color-ring: #0e7c66;
+  --color-primary-press: #2e2b8c;
+  --color-primary-soft: #665efd;
+  --color-secondary: #f6f9fc;
+  --color-secondary-foreground: #0d253d;
+  --color-muted: #f6f9fc;
+  --color-muted-foreground: #64748d;
+  --color-accent: #ecebff;
+  --color-accent-foreground: #4434d4;
+  --color-destructive: #ea2261;
+  --color-border: #e3e8ee;
+  --color-input: #a8c3de;
+  --color-ring: #665efd;
   --color-sidebar: #ffffff;
-  --color-sidebar-foreground: #121816;
-  --color-sidebar-primary: #0e7c66;
+  --color-sidebar-foreground: #0d253d;
+  --color-sidebar-primary: #533afd;
   --color-sidebar-primary-foreground: #ffffff;
-  --color-sidebar-accent: #ddf3ec;
-  --color-sidebar-accent-foreground: #0a6352;
-  --color-sidebar-border: #d5ddd9;
-  --color-sidebar-ring: #0e7c66;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.625rem;
-  --radius-xl: 0.875rem;
+  --color-sidebar-accent: #ecebff;
+  --color-sidebar-accent-foreground: #4434d4;
+  --color-sidebar-border: #e3e8ee;
+  --color-sidebar-ring: #665efd;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 }
 
 @layer base {
@@ -49,6 +51,10 @@
     background: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.4;
+    font-weight: 300;
+    font-feature-settings: "ss01";
     -webkit-font-smoothing: antialiased;
   }
 
@@ -69,13 +75,15 @@
 
 .font-display {
   font-family: var(--font-display);
+  font-weight: 300;
+  letter-spacing: -0.26px;
 }
 
 .graph-stage {
   height: min(70vh, 560px);
   min-height: 360px;
   overflow: hidden;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   border: 1px solid var(--color-border);
-  background: #121816;
+  background: #1c1e54;
 }

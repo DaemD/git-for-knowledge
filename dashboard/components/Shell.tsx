@@ -62,7 +62,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         <Link
           href="/kbs"
           onClick={onNavigate}
-          className="font-display text-xl font-semibold tracking-tight text-foreground no-underline hover:no-underline"
+          className="text-[15px] font-normal tracking-normal text-foreground no-underline hover:no-underline"
         >
           grphly
         </Link>
@@ -89,7 +89,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         {auth.ready && auth.isAuthenticated ? (
           <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-2.5">
             <Avatar className="size-8">
-              <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+              <AvatarFallback className="bg-sidebar-accent text-xs font-normal text-primary">
                 {initials || "G"}
               </AvatarFallback>
             </Avatar>
@@ -149,7 +149,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <SidebarBody onNavigate={() => setMobileOpen(false)} />
             </SheetContent>
           </Sheet>
-          <span className="font-display text-lg font-semibold">grphly</span>
+          <span className="text-[15px] font-normal">grphly</span>
         </header>
 
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 lg:px-8">

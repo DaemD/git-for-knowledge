@@ -28,7 +28,7 @@ export default function NvlCanvas({
         id: node.id,
         caption: node.label,
         size: 28,
-        color: colors[node.kind] || colors.custom || "#9aa0a6",
+        color: colors[node.kind] || colors.custom || "#b9b9f9",
       })),
     [colors, nodes],
   );
