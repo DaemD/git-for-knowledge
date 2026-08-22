@@ -21,6 +21,9 @@ class Settings(BaseSettings):
         description="Single shared NAMS workspace id used by all users",
     )
 
+    # One-shot: wipe graphs / memory_writes / invites so Postgres matches a new NAMS graph.
+    reset_kb_control_plane: bool = False
+
     # PostgreSQL control plane (users, graphs, sessions, memory_writes).
     database_url: str = Field(
         default="postgresql://postgres:postgres@localhost:5432/knowledge",

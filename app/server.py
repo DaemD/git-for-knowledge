@@ -275,6 +275,12 @@ async def lifespan(_: Starlette):
 
     # Postgres is ours — fail hard. NAMS is upstream Neo4j Labs — brief retry then degrade.
     await control.connect()
+    if settings.reset_kb_control_plane:
+        cleared = await control.clear_knowledge_plane()
+        logger.warning(
+            "RESET_KB_CONTROL_PLANE cleared stale KB rows: %s (users kept)",
+            cleared,
+        )
     # Keep startup short so Railway /health can bind quickly; background loop continues.
     nams_ok = await store.connect_with_retry(
         attempts=5,

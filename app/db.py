@@ -193,6 +193,7 @@ class AccessibleGraph:
 class ControlStore(Protocol):
     async def connect(self) -> None: ...
     async def close(self) -> None: ...
+    async def clear_knowledge_plane(self) -> dict[str, int]: ...
     async def upsert_user(
         self,
         subject: str,
@@ -391,6 +392,25 @@ class PostgresControlStore:
         if self._pool is not None:
             await self._pool.close()
             self._pool = None
+
+    async def clear_knowledge_plane(self) -> dict[str, int]:
+        """Drop KB rows that point at NAMS. Keep users and billing."""
+        async with self._pool_required().acquire() as conn:
+            graphs = await conn.fetchval("SELECT count(*) FROM graphs")
+            writes = await conn.fetchval("SELECT count(*) FROM memory_writes")
+            await conn.execute(
+                """
+                TRUNCATE TABLE
+                  memory_writes,
+                  kb_invites,
+                  graph_members,
+                  kb_summaries,
+                  entity_summaries,
+                  graphs
+                RESTART IDENTITY CASCADE
+                """
+            )
+        return {"graphs": int(graphs or 0), "memory_writes": int(writes or 0)}
 
     def _pool_required(self) -> asyncpg.Pool:
         if self._pool is None:
@@ -1128,6 +1148,17 @@ class InMemoryControlStore:
 
     async def close(self) -> None:
         return None
+
+    async def clear_knowledge_plane(self) -> dict[str, int]:
+        graph_count = len(self.graphs)
+        write_count = len(self.memory_writes)
+        self.memory_writes.clear()
+        self.kb_invites.clear()
+        self.graph_members.clear()
+        self.kb_summaries.clear()
+        self.entity_summaries.clear()
+        self.graphs.clear()
+        return {"graphs": graph_count, "memory_writes": write_count}
 
     async def upsert_user(
         self,
