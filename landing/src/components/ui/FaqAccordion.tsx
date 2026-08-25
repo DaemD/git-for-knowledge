@@ -15,7 +15,7 @@ export function FaqAccordion({ items }: { items: Item[] }) {
           <div key={item.q} className="border-b border-hairline">
             <button
               type="button"
-              className="flex w-full items-center justify-between gap-4 py-5 text-left text-[18px] font-light text-ink"
+              className="flex w-full items-center justify-between gap-4 py-5 text-left text-[18px] font-normal text-ink"
               aria-expanded={isOpen}
               onClick={() => setOpen(isOpen ? null : i)}
             >
@@ -38,7 +38,7 @@ export function FaqAccordion({ items }: { items: Item[] }) {
                   transition={{ duration: 0.25 }}
                   className="overflow-hidden"
                 >
-                  <div className="pb-5 text-[15px] font-light leading-[1.4] text-ink-secondary [&_code]:code-chip">
+                  <div className="pb-5 text-[16px] font-normal leading-[1.5] tracking-[0.24px] text-ink-muted [&_code]:code-chip">
                     {item.a}
                   </div>
                 </motion.div>

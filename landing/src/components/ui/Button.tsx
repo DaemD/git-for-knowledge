@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 
 const base =
-  "inline-flex items-center justify-center rounded-full px-4 py-2 text-[16px] font-normal leading-none tracking-normal transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-soft";
+  "inline-flex items-center justify-center rounded-md text-[16px] font-normal leading-[1.5] tracking-normal transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-link-accent";
 
 const variants = {
-  primary: "bg-primary text-on-primary active:bg-primary-press",
-  ghost: "border border-primary bg-canvas text-primary active:bg-canvas-soft",
-  dark: "bg-brand-dark-900 text-on-primary",
+  primary:
+    "h-14 border border-ink bg-success-emphasis px-7 py-1.5 text-ink",
+  ghost:
+    "h-14 border border-ink bg-surface-2 px-7 py-1.5 text-link-blue",
+  dark: "h-10 border border-ink bg-success-emphasis px-4 py-2 text-[14px] text-ink",
 } as const;
 
 type Variant = keyof typeof variants;

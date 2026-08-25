@@ -32,7 +32,7 @@ function NavLinks({
         href="/kbs"
         onClick={onNavigate}
         className={cn(
-          "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium no-underline transition-colors",
+          "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-normal no-underline transition-colors",
           onKbs
             ? "bg-sidebar-accent text-sidebar-accent-foreground"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -89,12 +89,12 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         {auth.ready && auth.isAuthenticated ? (
           <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-2.5">
             <Avatar className="size-8">
-              <AvatarFallback className="bg-sidebar-accent text-xs font-normal text-primary">
+              <AvatarFallback className="bg-sidebar-accent text-xs font-normal text-link">
                 {initials || "G"}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">
+              <p className="truncate text-sm font-normal text-foreground">
                 {auth.name || "Signed in"}
               </p>
               <p className="truncate text-xs text-muted-foreground">
@@ -134,7 +134,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/90 px-4 backdrop-blur md:hidden">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-[#000000] px-4 md:hidden">
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button type="button" variant="outline" size="icon-sm">

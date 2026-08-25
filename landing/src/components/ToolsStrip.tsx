@@ -10,7 +10,7 @@ export function ToolsStrip() {
         {TOOLS.map((tool) => (
           <li
             key={tool}
-            className="rounded-full bg-primary-bg-subdued-hover px-2 py-1 text-[10px] font-normal uppercase tracking-[0.1px] text-primary-deep"
+            className="rounded-[60px] border border-hairline bg-surface-1 px-3 py-1 text-[12px] font-normal tracking-[0.24px] text-ink-muted"
           >
             {tool}
           </li>

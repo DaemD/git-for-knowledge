@@ -121,28 +121,28 @@ export function ConnectSection() {
   return (
     <section id="connect" className="tile-pad scroll-mt-14 bg-canvas-soft">
       <div className="mx-auto max-w-[720px] text-center">
-        <p className="text-[10px] font-normal uppercase tracking-[0.1px] text-primary-deep">
+        <p className="text-[16px] font-normal tracking-[0.24px] text-link-blue">
           Setup
         </p>
-        <h2 className="mt-3 text-[48px] font-light leading-[1.15] tracking-[-0.96px] text-ink max-md:text-[32px]">
+        <h2 className="mt-3 text-[40px] font-[460] leading-[1.2] tracking-[-0.8px] text-ink max-md:text-[32px]">
           Connect your AI.
           <br />
           Start pushing today.
         </h2>
-        <p className="mx-auto mt-5 max-w-xl text-[16px] font-light leading-[1.4] text-ink-secondary">
+        <p className="mx-auto mt-5 max-w-xl text-[18px] font-normal leading-[1.5] tracking-[0.24px] text-ink-muted">
           Same endpoint everywhere. Pick your client, paste the snippet
           (includes the OAuth client id), sign in with Google — then run{" "}
           <code className="code-chip">kb push</code> on the first fact you’re
           tired of repeating.
         </p>
-        <p className="card-shadow mx-auto mt-6 max-w-xl rounded-lg border border-hairline bg-canvas px-4 py-3 text-[13px] text-ink">
+        <p className="mx-auto mt-6 max-w-xl rounded-xl border border-hairline bg-surface-1 px-4 py-3 text-[13px] text-ink">
           OAuth client id (Auth0 native / MCP clients):{" "}
           <code className="font-mono tracking-normal text-primary">{OAUTH_CLIENT_ID}</code>
         </p>
       </div>
 
       <div
-        className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-2"
+        className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-1 rounded-[60px] bg-surface-1 p-1"
         role="tablist"
         aria-label="AI clients"
       >
@@ -153,10 +153,10 @@ export function ConnectSection() {
             role="tab"
             aria-selected={client === c.id}
             onClick={() => setClient(c.id)}
-            className={`rounded-full px-4 py-2 text-[14px] font-normal ${
+            className={`rounded-[60px] px-4 py-2 text-[14px] font-normal ${
               client === c.id
-                ? "bg-primary-bg-subdued-hover text-primary-deep"
-                : "border border-hairline bg-canvas text-ink-mute"
+                ? "bg-surface-2 text-ink"
+                : "text-ink-mute"
             }`}
           >
             {c.label}
@@ -171,10 +171,10 @@ export function ConnectSection() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.2 }}
-          className="card-shadow mx-auto mt-8 max-w-3xl rounded-lg border border-hairline bg-canvas p-8 text-left"
+          className="mx-auto mt-8 max-w-3xl rounded-xl border border-hairline bg-surface-1 p-8 text-left"
           role="tabpanel"
         >
-          <ol className="list-decimal space-y-2.5 pl-5 text-[15px] font-light leading-[1.4] text-ink [&_code]:code-chip">
+          <ol className="list-decimal space-y-2.5 pl-5 text-[16px] font-normal leading-[1.5] tracking-[0.24px] text-ink [&_code]:code-chip">
             {panel.steps.map((step, i) => (
               <li key={i}>{step}</li>
             ))}

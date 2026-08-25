@@ -59,12 +59,12 @@ function buildCrystal() {
       const dist = cubeDist(q, r);
       if (dist > RADIUS) continue;
       const { x, y } = hexPixel(q, r);
-      let fill = "rgba(255,255,255,0.22)";
-      if (dist === 0) fill = "#533afd";
-      else if (dist === 1) fill = "#665efd";
-      else if (dist === 2) fill = "#b9b9f9";
-      else if (dist === 3) fill = "#c5b4f7";
-      else if (dist === 4) fill = "rgba(245,233,212,0.85)";
+      let fill = "rgba(240,246,252,0.22)";
+      if (dist === 0) fill = "#8dd6ff";
+      else if (dist === 1) fill = "#5fed83";
+      else if (dist === 2) fill = "#4493f8";
+      else if (dist === 3) fill = "#7873cb";
+      else if (dist === 4) fill = "rgba(240,246,252,0.35)";
       nodes.push({
         id: key(q, r),
         q,
@@ -79,9 +79,9 @@ function buildCrystal() {
   }
 
   const accents: { q: number; r: number; fill: string; radius: number }[] = [
-    { q: 4, r: -2, fill: "#ea2261", radius: 6.2 },
-    { q: -3, r: 5, fill: "#f96bee", radius: 6.2 },
-    { q: -2, r: -3, fill: "#edc08a", radius: 6.2 },
+    { q: 4, r: -2, fill: "#5fed83", radius: 6.2 },
+    { q: -3, r: 5, fill: "#e6b7fe", radius: 6.2 },
+    { q: -2, r: -3, fill: "#ff7b72", radius: 6.2 },
   ];
   for (const a of accents) {
     const n = nodes.find((node) => node.q === a.q && node.r === a.r);
@@ -174,9 +174,9 @@ export function HeroLattice() {
       >
         <defs>
           <radialGradient id={`${glow}-bg`} cx="50%" cy="46%" r="58%">
-            <stop offset="0%" stopColor="#533afd" stopOpacity="0.28" />
-            <stop offset="42%" stopColor="#1c1e54" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#0d253d" stopOpacity="1" />
+            <stop offset="0%" stopColor="#9350ff" stopOpacity="0.32" />
+            <stop offset="42%" stopColor="#151a22" stopOpacity="0.72" />
+            <stop offset="100%" stopColor="#010409" stopOpacity="1" />
           </radialGradient>
           <filter id={glow} x="-40%" y="-40%" width="180%" height="180%">
             <feGaussianBlur stdDeviation="4.5" result="b" />
@@ -194,7 +194,7 @@ export function HeroLattice() {
             key={d}
             points={ringPolygon(d)}
             fill="none"
-            stroke="rgba(185,185,249,0.14)"
+            stroke="rgba(141,214,255,0.14)"
             strokeWidth="1"
           />
         ))}
@@ -206,7 +206,7 @@ export function HeroLattice() {
             y1={e.y1}
             x2={e.x2}
             y2={e.y2}
-            stroke={e.core ? "rgba(102,94,253,0.55)" : "rgba(185,185,249,0.16)"}
+            stroke={e.core ? "rgba(141,214,255,0.5)" : "rgba(72,79,88,0.55)"}
             strokeWidth={e.core ? 1.35 : 0.9}
           />
         ))}
@@ -216,7 +216,7 @@ export function HeroLattice() {
             <path
               d={crystal.pulseA}
               fill="none"
-              stroke="#533afd"
+              stroke="#5fed83"
               strokeWidth="2.2"
               strokeLinecap="round"
               className="hero-pulse-a"
@@ -224,7 +224,7 @@ export function HeroLattice() {
             <path
               d={crystal.pulseB}
               fill="none"
-              stroke="#f96bee"
+              stroke="#8dd6ff"
               strokeWidth="1.8"
               strokeLinecap="round"
               className="hero-pulse-b"
@@ -232,14 +232,14 @@ export function HeroLattice() {
             <circle r="4.2" fill="#ffffff" filter={`url(#${glow})`}>
               <animateMotion dur="5.5s" repeatCount="indefinite" path={crystal.pulseA} />
             </circle>
-            <circle r="3.4" fill="#ea2261" filter={`url(#${glow})`}>
+            <circle r="3.4" fill="#5fed83" filter={`url(#${glow})`}>
               <animateMotion dur="7s" repeatCount="indefinite" path={crystal.pulseB} />
             </circle>
           </>
         ) : (
           <>
-            <path d={crystal.pulseA} fill="none" stroke="#533afd" strokeWidth="2" />
-            <path d={crystal.pulseB} fill="none" stroke="#f96bee" strokeWidth="1.6" />
+            <path d={crystal.pulseA} fill="none" stroke="#5fed83" strokeWidth="2" />
+            <path d={crystal.pulseB} fill="none" stroke="#8dd6ff" strokeWidth="1.6" />
           </>
         )}
 

@@ -1,56 +1,73 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
-  --font-display: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-sans: "Mona Sans", "MonaSansFallback", Inter, -apple-system, system-ui, sans-serif;
+  --font-display: "Mona Sans", "MonaSansFallback", Inter, -apple-system, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-primary: #533afd;
-  --color-primary-deep: #4434d4;
-  --color-primary-press: #2e2b8c;
-  --color-primary-soft: #665efd;
-  --color-primary-bg-subdued-hover: #b9b9f9;
-  --color-brand-dark-900: #1c1e54;
-  --color-ink: #0d253d;
-  --color-ink-secondary: #273951;
-  --color-ink-mute: #64748d;
-  --color-ink-mute-2: #61718a;
+  --color-canvas: #0d1117;
+  --color-void: #000000;
+  --color-canvas-inset: #010409;
+  --color-surface-1: #151a22;
+  --color-surface-2: #24292f;
+  --color-surface-3: #2e374a;
+  --color-ink: #ffffff;
+  --color-ink-default: #f0f6fc;
+  --color-ink-muted: #9198a1;
+  --color-ink-subtle: #a4aea6;
+  --color-hairline: #484f58;
+  --color-link-blue: #8dd6ff;
+  --color-link-accent: #4493f8;
+  --color-accent-green: #5fed83;
+  --color-success-emphasis: #08872b;
+  --color-danger-red: #ff7b72;
+  --color-glow-violet: #9350ff;
+  --color-glow-indigo: #5049c2;
+  --color-glow-lavender: #7873cb;
+  --color-glow-deep: #0e0aa2;
+  --color-glow-plum: #e6b7fe;
+
+  --color-primary: #8dd6ff;
+  --color-primary-deep: #8dd6ff;
+  --color-primary-press: #4493f8;
+  --color-primary-soft: #8dd6ff;
+  --color-primary-bg-subdued-hover: #24292f;
+  --color-primary-focus: #4493f8;
   --color-on-primary: #ffffff;
-  --color-canvas: #ffffff;
-  --color-canvas-soft: #f6f9fc;
-  --color-canvas-cream: #f5e9d4;
-  --color-hairline: #e3e8ee;
-  --color-hairline-input: #a8c3de;
-  --color-ruby: #ea2261;
-  --color-magenta: #f96bee;
-  --color-lemon: #9b6829;
-  --color-shadow-blue: #003770;
-
-  --color-parchment: #f6f9fc;
-  --color-surface: #ffffff;
-  --color-muted: #64748d;
-  --color-soft: #273951;
-  --color-text: #0d253d;
-  --color-accent: #533afd;
+  --color-brand-dark-900: #151a22;
+  --color-ink-secondary: #f0f6fc;
+  --color-ink-mute: #9198a1;
+  --color-ink-mute-2: #a4aea6;
+  --color-canvas-soft: #0d1117;
+  --color-canvas-cream: #000000;
+  --color-parchment: #151a22;
+  --color-surface: #151a22;
+  --color-muted: #9198a1;
+  --color-soft: #f0f6fc;
+  --color-text: #ffffff;
+  --color-accent: #8dd6ff;
   --color-on-dark: #ffffff;
-  --color-body-muted: #c4c8e0;
-  --color-ink-muted-80: #273951;
-  --color-ink-muted-48: #64748d;
-  --color-tile: #1c1e54;
-  --color-tile-2: #25275f;
-  --color-tile-3: #0d253d;
-  --color-void: #1c1e54;
-  --color-primary-on-dark: #665efd;
-  --color-primary-focus: #665efd;
+  --color-body-muted: #9198a1;
+  --color-ink-muted-80: #f0f6fc;
+  --color-ink-muted-48: #9198a1;
+  --color-tile: #151a22;
+  --color-tile-2: #24292f;
+  --color-tile-3: #151a22;
+  --color-primary-on-dark: #8dd6ff;
+  --color-ruby: #ff7b72;
+  --color-magenta: #e6b7fe;
+  --color-lemon: #5fed83;
 
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+  --radius-pill: 60px;
 }
 
 html {
   scroll-behavior: smooth;
+  color-scheme: dark;
 }
 
 body {
@@ -59,42 +76,39 @@ body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.4;
-  letter-spacing: 0;
-  font-weight: 300;
-  font-feature-settings: "ss01";
+  font-size: 16px;
+  line-height: 1.5;
+  letter-spacing: 0.24px;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: color-mix(in oklab, var(--color-primary) 22%, transparent);
+  background: color-mix(in oklab, var(--color-link-blue) 28%, transparent);
   color: var(--color-ink);
 }
 
 .card-shadow {
-  box-shadow: rgba(0, 55, 112, 0.08) 0 1px 3px;
+  box-shadow: none;
 }
 
 .mockup-shadow {
-  box-shadow:
-    rgba(0, 55, 112, 0.08) 0 8px 24px,
-    rgba(0, 55, 112, 0.04) 0 2px 6px;
+  box-shadow: none;
 }
 
 .code-chip {
-  border-radius: 4px;
-  background: var(--color-canvas-soft);
+  border-radius: 6px;
+  background: var(--color-surface-2);
   padding: 0.1rem 0.35rem;
   font-family: var(--font-mono);
   font-size: 0.88em;
   letter-spacing: 0;
-  color: var(--color-primary-deep);
+  color: var(--color-link-blue);
 }
 
 .terminal {
-  background: var(--color-brand-dark-900);
-  color: #d7dce8;
+  background: var(--color-surface-1);
+  color: var(--color-ink-default);
 }
 
 .tile-pad {

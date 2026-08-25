@@ -25,15 +25,15 @@ function TileHead({
     <div className="mx-auto max-w-[720px] text-center">
       {eyebrow ? (
         <p
-          className={`text-[10px] font-normal uppercase tracking-[0.1px] ${
-            dark ? "text-primary-soft" : "text-primary-deep"
+          className={`text-[16px] font-normal tracking-[0.24px] ${
+            dark ? "text-primary-soft" : "text-link-blue"
           }`}
         >
           {eyebrow}
         </p>
       ) : null}
       <h2
-        className={`mt-3 text-[48px] font-light leading-[1.15] tracking-[-0.96px] max-md:text-[32px] ${
+        className={`mt-3 text-[40px] font-[460] leading-[1.2] tracking-[-0.8px] max-md:text-[32px] ${
           dark ? "text-on-primary" : "text-ink"
         }`}
       >
@@ -41,8 +41,8 @@ function TileHead({
       </h2>
       {lede ? (
         <p
-          className={`mx-auto mt-4 max-w-xl text-[16px] font-light leading-[1.4] [&_code]:code-chip ${
-            dark ? "text-body-muted" : "text-ink-secondary"
+          className={`mx-auto mt-4 max-w-xl text-[18px] font-normal leading-[1.5] tracking-[0.24px] [&_code]:code-chip ${
+            dark ? "text-body-muted" : "text-ink-muted"
           }`}
         >
           {lede}
@@ -57,19 +57,19 @@ export default function App() {
     <div className="bg-canvas text-ink">
       <Header />
       <main>
-        <section className="relative overflow-hidden text-center">
+        <section className="relative overflow-hidden bg-void text-center">
           <GradientMesh className="pointer-events-none absolute inset-x-0 top-0 h-[68%] w-full" />
-          <div className="pointer-events-none absolute inset-x-0 top-[28%] h-[42%] bg-gradient-to-b from-transparent to-canvas" />
+          <div className="pointer-events-none absolute inset-x-0 top-[28%] h-[42%] bg-gradient-to-b from-transparent to-void" />
           <div className="relative tile-pad">
-            <p className="text-[10px] font-normal uppercase tracking-[0.1px] text-primary-deep">
+            <p className="text-[16px] font-normal tracking-[0.24px] text-link-blue">
               grphly
             </p>
-            <h1 className="mx-auto mt-4 max-w-[860px] text-[56px] font-light leading-[1.03] tracking-[-1.4px] max-md:text-[36px]">
+            <h1 className="mx-auto mt-4 max-w-[860px] text-[64px] font-[425] leading-[1.05] tracking-[-2.24px] max-md:text-[40px]">
               Push in Cursor.
               <br />
               Fetch in Claude or ChatGPT.
             </h1>
-            <p className="mx-auto mt-5 max-w-xl text-[16px] font-light leading-[1.4] text-ink-secondary">
+            <p className="mx-auto mt-5 max-w-xl text-[18px] font-normal leading-[1.5] tracking-[0.24px] text-ink-muted">
               One knowledge base — not five conflicting mental models.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -101,21 +101,21 @@ export default function App() {
             label="Split-screen comparison: assistants with amnesia versus a shared knowledge graph"
           />
           <div className="mx-auto mt-12 grid max-w-[980px] gap-6 text-left md:grid-cols-2">
-            <div className="card-shadow rounded-lg border border-hairline bg-canvas p-8">
-              <strong className="text-[18px] font-light tracking-normal">
+            <div className="rounded-xl border border-hairline bg-surface-1 p-8">
+              <strong className="text-[22px] font-[480] tracking-normal">
                 Without grphly
               </strong>
-              <p className="mt-2 text-[15px] font-light leading-[1.4] text-ink-secondary">
+              <p className="mt-2 text-[16px] font-normal leading-[1.5] tracking-[0.24px] text-ink-muted">
                 “We use Postgres, right?” — asked for the 4th time this week.
                 Junior joins, spends half a day reconstructing decisions from
                 old PRs. You switch from Cursor to Claude and start over.
               </p>
             </div>
-            <div className="card-shadow rounded-lg border border-hairline bg-canvas p-8">
-              <strong className="text-[18px] font-light tracking-normal">
+            <div className="rounded-xl border border-hairline bg-surface-1 p-8">
+              <strong className="text-[22px] font-[480] tracking-normal">
                 With grphly
               </strong>
-              <p className="mt-2 text-[15px] font-light leading-[1.4] text-ink-secondary [&_code]:code-chip">
+              <p className="mt-2 text-[16px] font-normal leading-[1.5] tracking-[0.24px] text-ink-muted [&_code]:code-chip">
                 Push the decision once. Any teammate, any assistant, any day —{" "}
                 <code>kb fetch</code> returns the same source of truth. Less
                 re-prompting. Fewer wrong assumptions. Faster shipping.
@@ -161,14 +161,14 @@ export default function App() {
               },
             ].map((item, i) => (
               <li key={item.t} className="flex gap-4">
-                <span className="text-[14px] font-light tabular-nums tracking-[-0.42px] text-primary">
+                <span className="text-[14px] font-normal tabular-nums tracking-[0.24px] text-link-blue">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <div>
-                  <strong className="text-[18px] font-light text-ink">
+                  <strong className="text-[22px] font-[480] text-ink">
                     {item.t}
                   </strong>
-                  <p className="mt-1 text-[15px] font-light leading-[1.4] text-ink-secondary [&_code]:code-chip">
+                  <p className="mt-1 text-[16px] font-normal leading-[1.5] tracking-[0.24px] text-ink-muted [&_code]:code-chip">
                     {item.d}
                   </p>
                 </div>
@@ -198,7 +198,7 @@ export default function App() {
         </section>
 
         <section
-          className="relative overflow-hidden bg-brand-dark-900 px-5 py-24 text-center"
+          className="relative overflow-hidden bg-void px-5 py-24 text-center"
           aria-label="Get started"
         >
           <video
@@ -211,12 +211,12 @@ export default function App() {
             aria-hidden
           />
           <div className="relative">
-            <h2 className="text-[48px] font-light leading-[1.15] tracking-[-0.96px] text-on-primary max-md:text-[32px]">
+            <h2 className="text-[40px] font-[460] leading-[1.2] tracking-[-0.8px] text-on-primary max-md:text-[32px]">
               Connect your AI.
               <br />
               Stop re-explaining.
             </h2>
-            <p className="mx-auto mt-4 max-w-md text-[16px] font-light leading-[1.4] text-body-muted">
+            <p className="mx-auto mt-4 max-w-md text-[18px] font-normal leading-[1.5] tracking-[0.24px] text-body-muted">
               Add grphly as an MCP server. Push once. Fetch in any assistant —
               or invite a teammate to the same knowledge base.
             </p>
@@ -238,15 +238,15 @@ export default function App() {
             }
             lede="Start with a full trial from your first Google sign-in."
           />
-          <div className="mx-auto mt-12 max-w-md rounded-lg bg-brand-dark-900 p-8 text-left text-on-primary">
-            <p className="text-[22px] font-light tracking-[-0.22px]">Pro</p>
-            <p className="mt-2 text-[26px] font-light leading-[1.12] tracking-[-0.26px] tabular-nums">
+          <div className="mx-auto mt-12 max-w-md rounded-xl border border-hairline bg-surface-1 p-8 text-left text-on-primary">
+            <p className="text-[22px] font-[480] tracking-normal">Pro</p>
+            <p className="mt-2 text-[26px] font-[460] leading-[1.12] tracking-normal tabular-nums">
               $19
-              <span className="ml-2 text-[15px] font-light text-body-muted">
+              <span className="ml-2 text-[16px] font-normal text-body-muted">
                 / month
               </span>
             </p>
-            <ul className="mt-6 space-y-2.5 text-[15px] font-light">
+            <ul className="mt-6 space-y-2.5 text-[16px] font-normal">
               {[
                 "14-day free trial on first login",
                 "Unlimited knowledge bases",
@@ -260,7 +260,7 @@ export default function App() {
             <div className="mt-8">
               <ButtonLink href="#connect">Start free in your AI</ButtonLink>
             </div>
-            <p className="mt-4 text-[11px] font-light leading-[1.4] text-body-muted [&_code]:code-chip">
+            <p className="mt-4 text-[13px] font-normal leading-[1.5] text-body-muted [&_code]:code-chip">
               After trial: in chat run <code>kb upgrade</code> — grphly returns
               a Lemon Squeezy checkout link.
             </p>
@@ -284,7 +284,7 @@ export default function App() {
             label="Dashboard mockup: commands, entity table, and knowledge graph"
           />
           <div className="mx-auto mt-10 max-w-[980px]">
-            <div className="card-shadow space-y-1 rounded-lg border border-hairline bg-canvas p-4 text-[15px]">
+            <div className="space-y-1 rounded-xl border border-hairline bg-surface-1 p-4 text-[16px]">
               {[
                 ["kb push", "store summaries, decisions, research dumps"],
                 ["kb fetch", "ask across what any LLM pushed"],
@@ -346,15 +346,15 @@ export default function App() {
             ].map((item, i) => (
               <li
                 key={item.t}
-                className="card-shadow list-none rounded-lg border border-hairline bg-canvas p-8"
+                className="list-none rounded-xl border border-hairline bg-surface-1 p-8"
               >
-                <span className="text-[14px] font-light tabular-nums tracking-[-0.42px] text-primary">
+                <span className="text-[14px] font-normal tabular-nums tracking-[0.24px] text-link-blue">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <strong className="mt-2 block text-[18px] font-light text-ink">
+                <strong className="mt-2 block text-[22px] font-[480] text-ink">
                   {item.t}
                 </strong>
-                <p className="mt-1.5 text-[15px] font-light leading-[1.4] text-ink-secondary [&_code]:code-chip">
+                <p className="mt-1.5 text-[16px] font-normal leading-[1.5] tracking-[0.24px] text-ink-muted [&_code]:code-chip">
                   {item.d}
                 </p>
               </li>
@@ -421,12 +421,12 @@ export default function App() {
 
         <section className="tile-pad bg-canvas-soft text-center">
           <PushFetchDemo />
-          <h2 className="mt-14 text-[48px] font-light leading-[1.15] tracking-[-0.96px] text-ink max-md:text-[32px]">
+          <h2 className="mt-14 text-[40px] font-[460] leading-[1.2] tracking-[-0.8px] text-ink max-md:text-[32px]">
             Your next chat
             <br />
             doesn’t have to be blank.
           </h2>
-          <p className="mx-auto mt-5 max-w-md text-[16px] font-light leading-[1.4] text-ink-secondary">
+          <p className="mx-auto mt-5 max-w-md text-[18px] font-normal leading-[1.5] tracking-[0.24px] text-ink-muted">
             Connect grphly once. Push the facts you’re tired of repeating.
             Tomorrow’s AI — and your teammates — already know.
           </p>
@@ -436,7 +436,7 @@ export default function App() {
         </section>
       </main>
 
-      <footer className="bg-canvas px-6 py-16">
+      <footer className="bg-void px-6 py-16">
         <div className="mx-auto flex max-w-[1200px] flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <span className="text-[15px] font-normal text-ink">grphly</span>
           <span className="text-[13px] tracking-[-0.39px] text-ink-mute">

@@ -1,38 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
-  --font-display: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-sans: "Mona Sans", "MonaSansFallback", Inter, -apple-system, system-ui, sans-serif;
+  --font-display: "Mona Sans", "MonaSansFallback", Inter, -apple-system, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-background: #f6f9fc;
-  --color-foreground: #0d253d;
-  --color-card: #ffffff;
-  --color-card-foreground: #0d253d;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #0d253d;
-  --color-primary: #533afd;
+  --color-background: #0d1117;
+  --color-foreground: #f0f6fc;
+  --color-card: #151a22;
+  --color-card-foreground: #f0f6fc;
+  --color-popover: #151a22;
+  --color-popover-foreground: #f0f6fc;
+  --color-primary: #08872b;
   --color-primary-foreground: #ffffff;
-  --color-primary-press: #2e2b8c;
-  --color-primary-soft: #665efd;
-  --color-secondary: #f6f9fc;
-  --color-secondary-foreground: #0d253d;
-  --color-muted: #f6f9fc;
-  --color-muted-foreground: #64748d;
-  --color-accent: #ecebff;
-  --color-accent-foreground: #4434d4;
-  --color-destructive: #ea2261;
-  --color-border: #e3e8ee;
-  --color-input: #a8c3de;
-  --color-ring: #665efd;
-  --color-sidebar: #ffffff;
-  --color-sidebar-foreground: #0d253d;
-  --color-sidebar-primary: #533afd;
+  --color-primary-press: #2da44e;
+  --color-primary-soft: #8dd6ff;
+  --color-secondary: #24292f;
+  --color-secondary-foreground: #f0f6fc;
+  --color-muted: #151a22;
+  --color-muted-foreground: #9198a1;
+  --color-accent: #24292f;
+  --color-accent-foreground: #8dd6ff;
+  --color-destructive: #ff7b72;
+  --color-border: #484f58;
+  --color-input: #484f58;
+  --color-link: #8dd6ff;
+  --color-ring: #4493f8;
+  --color-sidebar: #010409;
+  --color-sidebar-foreground: #f0f6fc;
+  --color-sidebar-primary: #08872b;
   --color-sidebar-primary-foreground: #ffffff;
-  --color-sidebar-accent: #ecebff;
-  --color-sidebar-accent-foreground: #4434d4;
-  --color-sidebar-border: #e3e8ee;
-  --color-sidebar-ring: #665efd;
+  --color-sidebar-accent: #151a22;
+  --color-sidebar-accent-foreground: #8dd6ff;
+  --color-sidebar-border: #484f58;
+  --color-sidebar-ring: #4493f8;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -51,15 +52,15 @@
     background: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    font-size: 15px;
-    line-height: 1.4;
-    font-weight: 300;
-    font-feature-settings: "ss01";
+    font-size: 14px;
+    line-height: 1.5;
+    font-weight: 400;
+    color-scheme: dark;
     -webkit-font-smoothing: antialiased;
   }
 
   a {
-    color: var(--color-primary);
+    color: var(--color-link);
     text-decoration: none;
   }
 
@@ -75,8 +76,8 @@
 
 .font-display {
   font-family: var(--font-display);
-  font-weight: 300;
-  letter-spacing: -0.26px;
+  font-weight: 460;
+  letter-spacing: 0;
 }
 
 .graph-stage {
@@ -85,5 +86,5 @@
   overflow: hidden;
   border-radius: var(--radius-xl);
   border: 1px solid var(--color-border);
-  background: #1c1e54;
+  background: #010409;
 }

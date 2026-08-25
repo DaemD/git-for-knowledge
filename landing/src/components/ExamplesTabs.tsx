@@ -53,7 +53,7 @@ export function ExamplesTabs() {
   return (
     <div className="mx-auto mt-12 max-w-3xl">
       <div
-        className="flex flex-wrap gap-2"
+        className="flex flex-wrap gap-1 rounded-[60px] bg-surface-1 p-1"
         role="tablist"
         aria-label="Examples"
       >
@@ -64,10 +64,10 @@ export function ExamplesTabs() {
             role="tab"
             aria-selected={active === i}
             onClick={() => setActive(i)}
-            className={`rounded-full px-4 py-2 text-left text-[14px] font-normal ${
+            className={`rounded-[60px] px-4 py-2 text-left text-[14px] font-normal ${
               active === i
-                ? "bg-primary-bg-subdued-hover text-primary-deep"
-                : "border border-hairline bg-canvas text-ink-mute"
+                ? "bg-surface-2 text-ink"
+                : "text-ink-mute"
             }`}
           >
             {item.h.split("→")[0].trim()}
@@ -83,11 +83,11 @@ export function ExamplesTabs() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.25 }}
-          className="mockup-shadow mt-5 overflow-hidden rounded-xl border border-hairline bg-canvas"
+          className="mt-5 overflow-hidden rounded-xl border border-hairline bg-surface-1"
         >
           <div className="border-b border-hairline px-6 py-4">
-            <h3 className="text-[18px] font-light text-ink">{ex.h}</h3>
-            <p className="mt-1.5 text-[15px] font-light leading-[1.4] text-ink-secondary">
+            <h3 className="text-[22px] font-[480] text-ink">{ex.h}</h3>
+            <p className="mt-1.5 text-[16px] font-normal leading-[1.5] tracking-[0.24px] text-ink-muted">
               {ex.p}
             </p>
           </div>
